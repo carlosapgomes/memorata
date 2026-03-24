@@ -27,6 +27,28 @@ struct RecordingErrorEvent {
     detail: Option<String>,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct TranscriptionErrorEvent {
+    error_type: String,
+    detail: Option<String>,
+}
+
+fn classify_transcription_error(error_message: &str) -> &'static str {
+    let msg = error_message.to_lowercase();
+
+    if msg.contains("assemblyai api key is empty") {
+        "assembly_ai_api_key_missing"
+    } else if msg.contains("assemblyai transcription failed") {
+        "assembly_ai_transcription_failed"
+    } else if msg.contains("assemblyai polling timed out") {
+        "assembly_ai_timeout"
+    } else if msg.contains("model is not loaded") || msg.contains("model failed to load") {
+        "local_model_unavailable"
+    } else {
+        "transcription_failed"
+    }
+}
+
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
 /// transcription pipeline finishes — whether it completes normally or panics.
 struct FinishGuard(AppHandle);
@@ -582,6 +604,16 @@ impl ShortcutAction for TranscribeAction {
                         }
                         Err(err) => {
                             debug!("Global Shortcut Transcription error: {}", err);
+                            let error_message = err.to_string();
+                            let error_type = classify_transcription_error(&error_message);
+                            let _ = ah.emit(
+                                "transcription-error",
+                                TranscriptionErrorEvent {
+                                    error_type: error_type.to_string(),
+                                    detail: Some(error_message.clone()),
+                                },
+                            );
+
                             // Save entry with empty text so user can retry
                             if wav_saved {
                                 if let Err(save_err) = hm.save_entry(

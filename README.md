@@ -49,6 +49,44 @@ The process is entirely local:
 
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
 
+### Transcription Backends (MVP)
+
+Memorata currently supports two transcription backends:
+
+- `local` (default): uses local models configured by `selected_model`
+- `assembly_ai`: sends audio to AssemblyAI API and returns transcript text
+
+Configuration is file-based (no UI selector yet).
+
+1) Open your app data directory (see Troubleshooting section below)
+2) Edit `settings_store.json`
+3) Update the `settings` object with:
+
+```json
+{
+  "transcription_backend": "local",
+  "selected_model": "<your-local-model-id>",
+  "assembly_ai_api_key": "",
+  "assembly_ai_base_url": "https://api.assemblyai.com/v2",
+  "assembly_ai_poll_interval_ms": 2000,
+  "assembly_ai_timeout_seconds": 10800
+}
+```
+
+AssemblyAI mode example:
+
+```json
+{
+  "transcription_backend": "assembly_ai",
+  "assembly_ai_api_key": "YOUR_API_KEY"
+}
+```
+
+Notes:
+
+- If `transcription_backend` is `assembly_ai` and API fails, the app returns explicit failure (no automatic fallback to local).
+- For recordings around 1-2 hours, keep `assembly_ai_timeout_seconds` high enough (default is 3h).
+
 ## Integrations
 
 <a href="https://www.raycast.com/mattiacolombomc/handy" title="Install Handy Raycast Extension"><img src="https://www.raycast.com/mattiacolombomc/handy/install_button@2x.png?v=1.1" height="64" style="height: 64px;" alt="Install handy Raycast Extension" /></a>

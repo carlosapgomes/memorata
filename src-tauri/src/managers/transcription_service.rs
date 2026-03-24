@@ -80,10 +80,16 @@ impl TranscriptionService {
             ));
         }
 
-        let base_url = settings
-            .assembly_ai_base_url
-            .trim_end_matches('/')
-            .to_string();
+        let base_url_raw = settings.assembly_ai_base_url.trim();
+        if base_url_raw.is_empty()
+            || !(base_url_raw.starts_with("http://") || base_url_raw.starts_with("https://"))
+        {
+            return Err(anyhow!(
+                "AssemblyAI base URL is invalid. Configure settings.assembly_ai_base_url with a valid http(s) URL"
+            ));
+        }
+
+        let base_url = base_url_raw.trim_end_matches('/').to_string();
         let poll_interval = Duration::from_millis(
             settings
                 .assembly_ai_poll_interval_ms

@@ -7,12 +7,17 @@ import {
   checkAccessibilityPermission,
   checkMicrophonePermission,
 } from "tauri-plugin-macos-permissions-api";
-import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
+import {
+  ModelStateEvent,
+  RecordingErrorEvent,
+  TranscriptionErrorEvent,
+} from "./lib/types/events";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import RecordingSessionControls from "./components/recording/RecordingSessionControls";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
 import { commands } from "@/bindings";
@@ -59,12 +64,6 @@ function App() {
   useEffect(() => {
     if (onboardingStep === "done" && !hasCompletedPostOnboardingInit.current) {
       hasCompletedPostOnboardingInit.current = true;
-      Promise.all([
-        commands.initializeEnigo(),
-        commands.initializeShortcuts(),
-      ]).catch((e) => {
-        console.warn("Failed to initialize:", e);
-      });
       refreshAudioDevices();
       refreshOutputDevices();
     }
@@ -121,6 +120,37 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, [t]);
+
+  // Listen for transcription failures and show a toast
+  useEffect(() => {
+    const unlisten = listen<TranscriptionErrorEvent>(
+      "transcription-error",
+      (event) => {
+        const { error_type, detail } = event.payload;
+
+        const description = (() => {
+          switch (error_type) {
+            case "assembly_ai_api_key_missing":
+              return "Configure a chave da AssemblyAI no settings_store.json (assembly_ai_api_key).";
+            case "assembly_ai_timeout":
+              return "A transcrição na AssemblyAI expirou por tempo. Tente novamente ou aumente o timeout.";
+            case "assembly_ai_transcription_failed":
+              return "A AssemblyAI retornou falha no processamento do áudio.";
+            case "local_model_unavailable":
+              return "Modelo local indisponível. Verifique selected_model e downloads de modelo.";
+            default:
+              return detail ?? "Falha desconhecida durante a transcrição.";
+          }
+        })();
+
+        toast.error("Falha na transcrição", { description });
+      },
+    );
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   // Listen for model loading failures and show a toast
   useEffect(() => {
@@ -259,6 +289,7 @@ function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col items-center p-4 gap-4">
+              <RecordingSessionControls />
               <AccessibilityPermissions />
               {renderSettingsContent(currentSection)}
             </div>
