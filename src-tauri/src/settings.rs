@@ -169,12 +169,25 @@ pub enum KeyboardImplementation {
     HandyKeys,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum TranscriptionBackend {
+    Local,
+    AssemblyAi,
+}
+
 impl Default for KeyboardImplementation {
     fn default() -> Self {
         #[cfg(target_os = "linux")]
         return KeyboardImplementation::Tauri;
         #[cfg(not(target_os = "linux"))]
         return KeyboardImplementation::HandyKeys;
+    }
+}
+
+impl Default for TranscriptionBackend {
+    fn default() -> Self {
+        TranscriptionBackend::Local
     }
 }
 
@@ -322,6 +335,16 @@ pub struct AppSettings {
     pub update_checks_enabled: bool,
     #[serde(default = "default_model")]
     pub selected_model: String,
+    #[serde(default)]
+    pub transcription_backend: TranscriptionBackend,
+    #[serde(default)]
+    pub assembly_ai_api_key: String,
+    #[serde(default = "default_assembly_ai_base_url")]
+    pub assembly_ai_base_url: String,
+    #[serde(default = "default_assembly_ai_poll_interval_ms")]
+    pub assembly_ai_poll_interval_ms: u64,
+    #[serde(default = "default_assembly_ai_timeout_seconds")]
+    pub assembly_ai_timeout_seconds: u64,
     #[serde(default = "default_always_on_microphone")]
     pub always_on_microphone: bool,
     #[serde(default)]
@@ -403,6 +426,18 @@ pub struct AppSettings {
 
 fn default_model() -> String {
     "".to_string()
+}
+
+fn default_assembly_ai_base_url() -> String {
+    "https://api.assemblyai.com/v2".to_string()
+}
+
+fn default_assembly_ai_poll_interval_ms() -> u64 {
+    2_000
+}
+
+fn default_assembly_ai_timeout_seconds() -> u64 {
+    10_800
 }
 
 fn default_always_on_microphone() -> bool {
@@ -729,6 +764,11 @@ pub fn get_default_settings() -> AppSettings {
         autostart_enabled: default_autostart_enabled(),
         update_checks_enabled: default_update_checks_enabled(),
         selected_model: "".to_string(),
+        transcription_backend: TranscriptionBackend::default(),
+        assembly_ai_api_key: String::new(),
+        assembly_ai_base_url: default_assembly_ai_base_url(),
+        assembly_ai_poll_interval_ms: default_assembly_ai_poll_interval_ms(),
+        assembly_ai_timeout_seconds: default_assembly_ai_timeout_seconds(),
         always_on_microphone: false,
         selected_microphone: None,
         clamshell_microphone: None,
@@ -910,5 +950,17 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn default_settings_use_local_transcription_backend() {
+        let settings = get_default_settings();
+        assert_eq!(settings.transcription_backend, TranscriptionBackend::Local);
+        assert_eq!(
+            settings.assembly_ai_base_url,
+            "https://api.assemblyai.com/v2"
+        );
+        assert_eq!(settings.assembly_ai_poll_interval_ms, 2_000);
+        assert_eq!(settings.assembly_ai_timeout_seconds, 10_800);
     }
 }

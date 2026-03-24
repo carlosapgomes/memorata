@@ -55,13 +55,13 @@ fn build_headers(provider: &PostProcessProvider, api_key: &str) -> Result<Header
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
         REFERER,
-        HeaderValue::from_static("https://github.com/cjpais/Handy"),
+        HeaderValue::from_static("https://github.com/cjpais/memorata"),
     );
     headers.insert(
         USER_AGENT,
-        HeaderValue::from_static("Handy/1.0 (+https://github.com/cjpais/Handy)"),
+        HeaderValue::from_static("Memorata/1.0 (+https://github.com/cjpais/memorata)"),
     );
-    headers.insert("X-Title", HeaderValue::from_static("Handy"));
+    headers.insert("X-Title", HeaderValue::from_static("Memorata"));
 
     // Provider-specific auth headers
     if !api_key.is_empty() {

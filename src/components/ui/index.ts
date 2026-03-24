@@ -1,3 +1,4 @@
+export { Button } from "./Button";
 export { Dropdown } from "./Dropdown";
 export { Slider } from "./Slider";
 export { ToggleSwitch } from "./ToggleSwitch";

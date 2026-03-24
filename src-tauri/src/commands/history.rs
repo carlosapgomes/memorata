@@ -1,7 +1,7 @@
 use crate::actions::process_transcription_output;
 use crate::managers::{
     history::{HistoryManager, PaginatedHistory},
-    transcription::TranscriptionManager,
+    transcription_service::TranscriptionService,
 };
 use std::sync::Arc;
 use tauri::{AppHandle, State};
@@ -61,10 +61,44 @@ pub async fn delete_history_entry(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn export_transcript_file(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<String, String> {
+    let entry = history_manager
+        .get_entry_by_id(id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry {} not found", id))?;
+
+    let transcript_text = entry
+        .post_processed_text
+        .as_deref()
+        .unwrap_or(&entry.transcription_text)
+        .trim()
+        .to_string();
+
+    if transcript_text.is_empty() {
+        return Err("No transcript available for this entry".to_string());
+    }
+
+    let artifact_path = history_manager
+        .save_transcript_artifact(&entry.file_name, &transcript_text)
+        .map_err(|e| e.to_string())?;
+
+    artifact_path
+        .to_str()
+        .ok_or_else(|| "Invalid transcript file path".to_string())
+        .map(|s| s.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn retry_history_entry_transcription(
     app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
-    transcription_manager: State<'_, Arc<TranscriptionManager>>,
+    transcription_manager: State<'_, Arc<TranscriptionService>>,
     id: i64,
 ) -> Result<(), String> {
     let entry = history_manager
@@ -83,10 +117,9 @@ pub async fn retry_history_entry_transcription(
 
     transcription_manager.initiate_model_load();
 
-    let tm = Arc::clone(&transcription_manager);
-    let transcription = tauri::async_runtime::spawn_blocking(move || tm.transcribe(samples))
+    let transcription = transcription_manager
+        .transcribe(samples)
         .await
-        .map_err(|e| format!("Transcription task panicked: {}", e))?
         .map_err(|e| e.to_string())?;
 
     if transcription.is_empty() {

@@ -1,14 +1,14 @@
 use clap::Parser;
 
 #[derive(Parser, Debug, Clone, Default)]
-#[command(name = "handy", about = "Handy - Speech to Text")]
+#[command(name = "memorata", about = "Memorata - Speech to Text")]
 pub struct CliArgs {
     /// Start with the main window hidden
     #[arg(long)]
     pub start_hidden: bool,
 
     /// Disable the system tray icon
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     pub no_tray: bool,
 
     /// Toggle transcription on/off (sent to running instance)

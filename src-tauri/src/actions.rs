@@ -4,7 +4,7 @@ use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, S
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription_service::TranscriptionService;
 use crate::settings::{get_settings, AppSettings, APPLE_INTELLIGENCE_PROVIDER_ID};
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -367,7 +367,7 @@ impl ShortcutAction for TranscribeAction {
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
         // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
+        let tm = app.state::<Arc<TranscriptionService>>();
         tm.initiate_model_load();
 
         let binding_id = binding_id.to_string();
@@ -466,7 +466,7 @@ impl ShortcutAction for TranscribeAction {
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
-        let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
+        let tm = Arc::clone(&app.state::<Arc<TranscriptionService>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
 
         change_tray_icon(app, TrayIconState::Transcribing);
@@ -503,7 +503,7 @@ impl ShortcutAction for TranscribeAction {
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
-                    let file_name = format!("handy-{}.wav", chrono::Utc::now().timestamp());
+                    let file_name = format!("memorata-{}.wav", chrono::Utc::now().timestamp());
                     let wav_path = hm.recordings_dir().join(&file_name);
                     let wav_path_for_verify = wav_path.clone();
                     let samples_for_wav = samples.clone();
@@ -513,7 +513,7 @@ impl ShortcutAction for TranscribeAction {
 
                     // Transcribe concurrently with WAV save
                     let transcription_time = Instant::now();
-                    let transcription_result = tm.transcribe(samples);
+                    let transcription_result = tm.transcribe(samples).await;
 
                     // Await WAV save and verify
                     let wav_saved = match wav_handle.await {
@@ -571,25 +571,13 @@ impl ShortcutAction for TranscribeAction {
                                 utils::hide_recording_overlay(&ah);
                                 change_tray_icon(&ah, TrayIconState::Idle);
                             } else {
-                                let ah_clone = ah.clone();
-                                let paste_time = Instant::now();
-                                let final_text = processed.final_text;
-                                ah.run_on_main_thread(move || {
-                                    match utils::paste(final_text, ah_clone.clone()) {
-                                        Ok(()) => debug!(
-                                            "Text pasted successfully in {:?}",
-                                            paste_time.elapsed()
-                                        ),
-                                        Err(e) => error!("Failed to paste transcription: {}", e),
-                                    }
-                                    utils::hide_recording_overlay(&ah_clone);
-                                    change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                })
-                                .unwrap_or_else(|e| {
-                                    error!("Failed to run paste on main thread: {:?}", e);
-                                    utils::hide_recording_overlay(&ah);
-                                    change_tray_icon(&ah, TrayIconState::Idle);
-                                });
+                                if let Err(err) =
+                                    hm.save_transcript_artifact(&file_name, &processed.final_text)
+                                {
+                                    error!("Failed to save transcript artifact: {}", err);
+                                }
+                                utils::hide_recording_overlay(&ah);
+                                change_tray_icon(&ah, TrayIconState::Idle);
                             }
                         }
                         Err(err) => {

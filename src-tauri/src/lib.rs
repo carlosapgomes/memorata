@@ -30,6 +30,7 @@ use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
 use managers::transcription::TranscriptionManager;
+use managers::transcription_service::TranscriptionService;
 #[cfg(unix)]
 use signal_hook::consts::{SIGUSR1, SIGUSR2};
 #[cfg(unix)]
@@ -153,6 +154,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         TranscriptionManager::new(app_handle, model_manager.clone())
             .expect("Failed to initialize transcription manager"),
     );
+    let transcription_service = Arc::new(
+        TranscriptionService::new(app_handle, transcription_manager.clone())
+            .expect("Failed to initialize transcription service"),
+    );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
 
@@ -163,6 +168,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(recording_manager.clone());
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
+    app_handle.manage(transcription_service.clone());
     app_handle.manage(history_manager.clone());
 
     // Note: Shortcuts are NOT initialized here.
@@ -414,10 +420,16 @@ pub fn run(cli_args: CliArgs) {
             commands::transcription::set_model_unload_timeout,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
+            commands::transcription::get_recording_session_state,
+            commands::transcription::start_recording_session,
+            commands::transcription::pause_recording_session,
+            commands::transcription::resume_recording_session,
+            commands::transcription::stop_recording_session,
             commands::history::get_history_entries,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
             commands::history::delete_history_entry,
+            commands::history::export_transcript_file,
             commands::history::retry_history_entry_transcription,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
@@ -455,11 +467,11 @@ pub fn run(cli_args: CliArgs) {
                     Target::new(if let Some(data_dir) = portable::data_dir() {
                         TargetKind::Folder {
                             path: data_dir.join("logs"),
-                            file_name: Some("handy".into()),
+                            file_name: Some("memorata".into()),
                         }
                     } else {
                         TargetKind::LogDir {
-                            file_name: Some("handy".into()),
+                            file_name: Some("memorata".into()),
                         }
                     })
                     .filter(|metadata| {
