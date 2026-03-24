@@ -579,7 +579,7 @@ impl ShortcutAction for TranscribeAction {
                             // Save to history if WAV was saved
                             if wav_saved {
                                 if let Err(err) = hm.save_entry(
-                                    file_name,
+                                    file_name.clone(),
                                     transcription,
                                     post_process,
                                     processed.post_processed_text.clone(),

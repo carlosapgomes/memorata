@@ -263,7 +263,8 @@ fn samples_to_wav_bytes(samples: &[f32]) -> Result<Vec<u8>> {
             .context("Failed writing WAV sample")?;
     }
 
-    let cursor = writer.finalize().context("Failed to finalize WAV bytes")?;
+    writer.finalize().context("Failed to finalize WAV bytes")?;
+    let cursor = writer.into_inner();
     Ok(cursor.into_inner())
 }
 
