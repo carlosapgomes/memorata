@@ -1,4 +1,4 @@
-# Handy
+# Memorata
 
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
 
@@ -48,6 +48,9 @@ The process is entirely local:
 ### Development Setup
 
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
+
+**Platform-specific guides:**
+- [Building on Windows](BUILD-WINDOWS.md) — step-by-step instructions for Windows
 
 ### Transcription Backends (MVP)
 
