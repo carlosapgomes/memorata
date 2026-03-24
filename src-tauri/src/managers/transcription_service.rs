@@ -252,19 +252,22 @@ fn samples_to_wav_bytes(samples: &[f32]) -> Result<Vec<u8>> {
         sample_format: SampleFormat::Int,
     };
 
-    let cursor = Cursor::new(Vec::new());
-    let mut writer = WavWriter::new(cursor, spec).context("Failed to create WAV writer")?;
+    let mut cursor = Cursor::new(Vec::new());
+    {
+        let mut writer =
+            WavWriter::new(&mut cursor, spec).context("Failed to create WAV writer")?;
 
-    for sample in samples {
-        let clamped = sample.clamp(-1.0, 1.0);
-        let sample_i16 = (clamped * i16::MAX as f32) as i16;
-        writer
-            .write_sample(sample_i16)
-            .context("Failed writing WAV sample")?;
+        for sample in samples {
+            let clamped = sample.clamp(-1.0, 1.0);
+            let sample_i16 = (clamped * i16::MAX as f32) as i16;
+            writer
+                .write_sample(sample_i16)
+                .context("Failed writing WAV sample")?;
+        }
+
+        writer.finalize().context("Failed to finalize WAV bytes")?;
     }
 
-    writer.finalize().context("Failed to finalize WAV bytes")?;
-    let cursor = writer.into_inner();
     Ok(cursor.into_inner())
 }
 
