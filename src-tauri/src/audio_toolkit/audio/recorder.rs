@@ -21,6 +21,8 @@ use crate::audio_toolkit::{
 
 enum Cmd {
     Start,
+    Pause,
+    Resume,
     Stop(mpsc::Sender<Vec<f32>>),
     Shutdown,
 }
@@ -198,6 +200,20 @@ impl AudioRecorder {
     pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(tx) = &self.cmd_tx {
             tx.send(Cmd::Start)?;
+        }
+        Ok(())
+    }
+
+    pub fn pause(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(tx) = &self.cmd_tx {
+            tx.send(Cmd::Pause)?;
+        }
+        Ok(())
+    }
+
+    pub fn resume(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(tx) = &self.cmd_tx {
+            tx.send(Cmd::Resume)?;
         }
         Ok(())
     }
@@ -476,7 +492,17 @@ fn run_consumer(
                         v.lock().unwrap().reset();
                     }
                 }
+                Cmd::Pause => {
+                    recording = false;
+                }
+                Cmd::Resume => {
+                    recording = true;
+                    if let Some(v) = &vad {
+                        v.lock().unwrap().reset();
+                    }
+                }
                 Cmd::Stop(reply_tx) => {
+                    let capture_on_drain = recording;
                     recording = false;
                     stop_flag.store(true, Ordering::Relaxed);
 
@@ -488,7 +514,12 @@ fn run_consumer(
                         match sample_rx.recv_timeout(Duration::from_secs(2)) {
                             Ok(AudioChunk::Samples(remaining)) => {
                                 frame_resampler.push(&remaining, &mut |frame: &[f32]| {
-                                    handle_frame(frame, true, &vad, &mut processed_samples)
+                                    handle_frame(
+                                        frame,
+                                        capture_on_drain,
+                                        &vad,
+                                        &mut processed_samples,
+                                    )
                                 });
                             }
                             Ok(AudioChunk::EndOfStream) => break,
@@ -500,7 +531,7 @@ fn run_consumer(
                     }
 
                     frame_resampler.finish(&mut |frame: &[f32]| {
-                        handle_frame(frame, true, &vad, &mut processed_samples)
+                        handle_frame(frame, capture_on_drain, &vad, &mut processed_samples)
                     });
 
                     let _ = reply_tx.send(std::mem::take(&mut processed_samples));

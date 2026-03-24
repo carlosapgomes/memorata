@@ -721,6 +721,41 @@ async unloadModelManually() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getRecordingSessionState() : Promise<RecordingSessionState> {
+    return await TAURI_INVOKE("get_recording_session_state");
+},
+async startRecordingSession() : Promise<Result<RecordingSessionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_recording_session") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async pauseRecordingSession() : Promise<Result<RecordingSessionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("pause_recording_session") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async resumeRecordingSession() : Promise<Result<RecordingSessionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resume_recording_session") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stopRecordingSession() : Promise<Result<RecordingSessionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop_recording_session") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<Result<PaginatedHistory, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_history_entries", { cursor, limit }) };
@@ -748,6 +783,14 @@ async getAudioFilePath(fileName: string) : Promise<Result<string, string>> {
 async deleteHistoryEntry(id: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_history_entry", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportTranscriptFile(id: number) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_transcript_file", { id }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -839,6 +882,7 @@ export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_
 export type PermissionAccess = "allowed" | "denied" | "unknown"
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
+export type RecordingSessionState = "idle" | "recording" | "paused" | "processing"
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type SoundTheme = "marimba" | "pop" | "custom"
 export type TypingTool = "auto" | "wtype" | "kwtype" | "dotool" | "ydotool" | "xdotool"

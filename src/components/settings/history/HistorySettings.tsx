@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { Check, Copy, FolderOpen, RotateCcw, Star, Trash2 } from "lucide-react";
+import { Check, Copy, Download, FolderOpen, RotateCcw, Star, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -216,6 +216,26 @@ export const HistorySettings: React.FC = () => {
     }
   };
 
+  const downloadTranscriptEntry = async (id: number, fileName: string) => {
+    const result = await commands.exportTranscriptFile(id);
+    if (result.status !== "ok") {
+      throw new Error(String(result.error));
+    }
+
+    const fileData = await readFile(result.data);
+    const blob = new Blob([fileData], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName.replace(/\.wav$/i, ".txt");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
+
   const retryHistoryEntry = async (id: number) => {
     const result = await commands.retryHistoryEntryTranscription(id);
     if (result.status !== "ok") {
@@ -261,6 +281,7 @@ export const HistorySettings: React.FC = () => {
               getAudioUrl={getAudioUrl}
               deleteAudio={deleteAudioEntry}
               retryTranscription={retryHistoryEntry}
+              downloadTranscript={downloadTranscriptEntry}
             />
           ))}
         </div>
@@ -299,6 +320,7 @@ interface HistoryEntryProps {
   getAudioUrl: (fileName: string) => Promise<string | null>;
   deleteAudio: (id: number) => Promise<void>;
   retryTranscription: (id: number) => Promise<void>;
+  downloadTranscript: (id: number, fileName: string) => Promise<void>;
 }
 
 const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
@@ -308,6 +330,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   getAudioUrl,
   deleteAudio,
   retryTranscription,
+  downloadTranscript,
 }) => {
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
@@ -351,6 +374,23 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
     }
   };
 
+  const handleDownloadTranscript = async () => {
+    if (!hasTranscription || retrying) {
+      return;
+    }
+
+    try {
+      await downloadTranscript(entry.id, entry.file_name);
+    } catch (error) {
+      console.error("Failed to download transcript:", error);
+      toast.error(
+        t("settings.history.downloadTranscriptError", {
+          defaultValue: "Failed to download transcript",
+        }),
+      );
+    }
+  };
+
   const formattedDate = formatDateTime(String(entry.timestamp), i18n.language);
 
   return (
@@ -368,6 +408,17 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
             ) : (
               <Copy width={16} height={16} />
             )}
+          </IconButton>
+          <IconButton
+            onClick={handleDownloadTranscript}
+            disabled={!hasTranscription || retrying}
+            title={
+              t("settings.history.downloadTranscript", {
+                defaultValue: "Download transcript",
+              })
+            }
+          >
+            <Download width={16} height={16} />
           </IconButton>
           <IconButton
             onClick={onToggleSaved}

@@ -1,6 +1,7 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
 use log::{debug, error, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 use std::thread;
@@ -17,6 +18,10 @@ enum Command {
         is_pressed: bool,
         push_to_talk: bool,
     },
+    StartSession,
+    PauseSession,
+    ResumeSession,
+    StopSession,
     Cancel {
         recording_was_active: bool,
     },
@@ -27,6 +32,7 @@ enum Command {
 enum Stage {
     Idle,
     Recording(String), // binding_id
+    Paused(String),
     Processing,
 }
 
@@ -35,6 +41,9 @@ enum Stage {
 /// the async transcribe-paste pipeline.
 pub struct TranscriptionCoordinator {
     tx: Sender<Command>,
+    is_recording: Arc<AtomicBool>,
+    is_paused: Arc<AtomicBool>,
+    is_processing: Arc<AtomicBool>,
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
@@ -44,11 +53,24 @@ pub fn is_transcribe_binding(id: &str) -> bool {
 impl TranscriptionCoordinator {
     pub fn new(app: AppHandle) -> Self {
         let (tx, rx) = mpsc::channel();
+        let is_recording = Arc::new(AtomicBool::new(false));
+        let is_paused = Arc::new(AtomicBool::new(false));
+        let is_processing = Arc::new(AtomicBool::new(false));
+
+        let is_recording_clone = Arc::clone(&is_recording);
+        let is_paused_clone = Arc::clone(&is_paused);
+        let is_processing_clone = Arc::clone(&is_processing);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut stage = Stage::Idle;
                 let mut last_press: Option<Instant> = None;
+                update_stage_flags(
+                    &stage,
+                    &is_recording_clone,
+                    &is_paused_clone,
+                    &is_processing_clone,
+                );
 
                 while let Ok(cmd) = rx.recv() {
                     match cmd {
@@ -91,12 +113,47 @@ impl TranscriptionCoordinator {
                                 }
                             }
                         }
+                        Command::StartSession => {
+                            if matches!(stage, Stage::Idle) {
+                                start(&app, &mut stage, "transcribe", "UI:start");
+                            }
+                        }
+                        Command::PauseSession => {
+                            let active_binding = match &stage {
+                                Stage::Recording(binding_id) => Some(binding_id.clone()),
+                                _ => None,
+                            };
+                            if let Some(binding_id) = active_binding {
+                                pause(&app, &mut stage, &binding_id);
+                            }
+                        }
+                        Command::ResumeSession => {
+                            let active_binding = match &stage {
+                                Stage::Paused(binding_id) => Some(binding_id.clone()),
+                                _ => None,
+                            };
+                            if let Some(binding_id) = active_binding {
+                                resume(&app, &mut stage, &binding_id);
+                            }
+                        }
+                        Command::StopSession => {
+                            let active_binding = match &stage {
+                                Stage::Recording(binding_id) | Stage::Paused(binding_id) => {
+                                    Some(binding_id.clone())
+                                }
+                                _ => None,
+                            };
+                            if let Some(binding_id) = active_binding {
+                                stop(&app, &mut stage, &binding_id, "UI:stop");
+                            }
+                        }
                         Command::Cancel {
                             recording_was_active,
                         } => {
                             // Don't reset during processing — wait for the pipeline to finish.
                             if !matches!(stage, Stage::Processing)
-                                && (recording_was_active || matches!(stage, Stage::Recording(_)))
+                                && (recording_was_active
+                                    || matches!(stage, Stage::Recording(_) | Stage::Paused(_)))
                             {
                                 stage = Stage::Idle;
                             }
@@ -105,6 +162,13 @@ impl TranscriptionCoordinator {
                             stage = Stage::Idle;
                         }
                     }
+
+                    update_stage_flags(
+                        &stage,
+                        &is_recording_clone,
+                        &is_paused_clone,
+                        &is_processing_clone,
+                    );
                 }
                 debug!("Transcription coordinator exited");
             }));
@@ -113,7 +177,12 @@ impl TranscriptionCoordinator {
             }
         });
 
-        Self { tx }
+        Self {
+            tx,
+            is_recording,
+            is_paused,
+            is_processing,
+        }
     }
 
     /// Send a keyboard/signal input event for a transcribe binding.
@@ -139,6 +208,30 @@ impl TranscriptionCoordinator {
         }
     }
 
+    pub fn start_session(&self) {
+        if self.tx.send(Command::StartSession).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    pub fn pause_session(&self) {
+        if self.tx.send(Command::PauseSession).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    pub fn resume_session(&self) {
+        if self.tx.send(Command::ResumeSession).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
+    pub fn stop_session(&self) {
+        if self.tx.send(Command::StopSession).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
     pub fn notify_cancel(&self, recording_was_active: bool) {
         if self
             .tx
@@ -156,6 +249,48 @@ impl TranscriptionCoordinator {
             warn!("Transcription coordinator channel closed");
         }
     }
+
+    pub fn is_recording(&self) -> bool {
+        self.is_recording.load(Ordering::Relaxed)
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.is_paused.load(Ordering::Relaxed)
+    }
+
+    pub fn is_processing(&self) -> bool {
+        self.is_processing.load(Ordering::Relaxed)
+    }
+}
+
+fn update_stage_flags(
+    stage: &Stage,
+    is_recording: &AtomicBool,
+    is_paused: &AtomicBool,
+    is_processing: &AtomicBool,
+) {
+    match stage {
+        Stage::Idle => {
+            is_recording.store(false, Ordering::Relaxed);
+            is_paused.store(false, Ordering::Relaxed);
+            is_processing.store(false, Ordering::Relaxed);
+        }
+        Stage::Recording(_) => {
+            is_recording.store(true, Ordering::Relaxed);
+            is_paused.store(false, Ordering::Relaxed);
+            is_processing.store(false, Ordering::Relaxed);
+        }
+        Stage::Paused(_) => {
+            is_recording.store(false, Ordering::Relaxed);
+            is_paused.store(true, Ordering::Relaxed);
+            is_processing.store(false, Ordering::Relaxed);
+        }
+        Stage::Processing => {
+            is_recording.store(false, Ordering::Relaxed);
+            is_paused.store(false, Ordering::Relaxed);
+            is_processing.store(true, Ordering::Relaxed);
+        }
+    }
 }
 
 fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &str) {
@@ -171,6 +306,32 @@ fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &s
         *stage = Stage::Recording(binding_id.to_string());
     } else {
         debug!("Start for '{binding_id}' did not begin recording; staying idle");
+    }
+}
+
+fn pause(app: &AppHandle, stage: &mut Stage, binding_id: &str) {
+    if let Some(audio_manager) = app.try_state::<Arc<AudioRecordingManager>>() {
+        match audio_manager.pause_recording(binding_id) {
+            Ok(()) => {
+                *stage = Stage::Paused(binding_id.to_string());
+            }
+            Err(err) => {
+                warn!("Failed to pause session for '{binding_id}': {err}");
+            }
+        }
+    }
+}
+
+fn resume(app: &AppHandle, stage: &mut Stage, binding_id: &str) {
+    if let Some(audio_manager) = app.try_state::<Arc<AudioRecordingManager>>() {
+        match audio_manager.resume_recording(binding_id) {
+            Ok(()) => {
+                *stage = Stage::Recording(binding_id.to_string());
+            }
+            Err(err) => {
+                warn!("Failed to resume session for '{binding_id}': {err}");
+            }
+        }
     }
 }
 

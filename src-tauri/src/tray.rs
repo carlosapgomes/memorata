@@ -63,9 +63,11 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState) -> &'static str {
 }
 
 pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
-    let tray = app.state::<TrayIcon>();
-    let theme = get_current_theme(app);
+    let Some(tray) = app.try_state::<TrayIcon>() else {
+        return;
+    };
 
+    let theme = get_current_theme(app);
     let icon_path = get_icon_path(theme, icon.clone());
 
     let _ = tray.set_icon(Some(
@@ -82,6 +84,10 @@ pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
 }
 
 pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&str>) {
+    if app.try_state::<TrayIcon>().is_none() {
+        return;
+    }
+
     let settings = settings::get_settings(app);
 
     let locale = locale.unwrap_or(&settings.app_language);

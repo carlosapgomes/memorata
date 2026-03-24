@@ -214,6 +214,19 @@ impl HistoryManager {
         &self.recordings_dir
     }
 
+    pub fn save_transcript_artifact(
+        &self,
+        audio_file_name: &str,
+        transcription_text: &str,
+    ) -> Result<PathBuf> {
+        let base_name = audio_file_name
+            .strip_suffix(".wav")
+            .unwrap_or(audio_file_name);
+        let transcript_path = self.recordings_dir.join(format!("{}.txt", base_name));
+        fs::write(&transcript_path, transcription_text)?;
+        Ok(transcript_path)
+    }
+
     /// Save a new history entry to the database.
     /// The WAV file should already have been written to the recordings directory.
     pub fn save_entry(
