@@ -43,4 +43,6 @@ blob-report/
 # Nix build output
 result
 error.txt
+error*.txt
+prompt*txt
 

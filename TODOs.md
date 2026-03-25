@@ -17,6 +17,14 @@ Atualizado em: 2026-03-24
   - [x] Trocar ícone grande no canto superior esquerdo
   - [x] Ajustar cor e tamanho para manter consistência visual
 
+- [ ] Item 7: Preview do histórico limitado a 200 caracteres
+  - [x] Truncamento Unicode-safe com `Array.from`
+  - [x] Normalização de whitespace (`replace(/\s+/g, " ").trim()`) antes de truncar
+  - [x] Estados `transcribing` e `transcriptionFailed` preservados
+  - [x] Validado com `bun run build`
+  - [ ] Validado com `cargo check --manifest-path src-tauri/Cargo.toml`
+  - [ ] Validado com `cargo test --manifest-path src-tauri/Cargo.toml`
+
 - [ ] Item 6: Diarização AssemblyAI com configuração por sessão
   - [x] A) Tipos de opção de sessão (backend)
     - [x] Struct `StartSessionOptions` com `enable_diarization` e `speakers_expected`

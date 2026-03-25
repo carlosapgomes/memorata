@@ -37,6 +37,21 @@ const IconButton: React.FC<{
 );
 
 const PAGE_SIZE = 30;
+const MAX_PREVIEW_CHARS = 200;
+
+const normalizePreviewText = (text: string): string => text.replace(/\s+/g, " ").trim();
+
+const buildHistoryPreview = (text: string): string => {
+  const normalized = normalizePreviewText(text);
+  const chars = Array.from(normalized);
+
+  if (chars.length <= MAX_PREVIEW_CHARS) {
+    return normalized;
+  }
+
+  return `${chars.slice(0, MAX_PREVIEW_CHARS).join("")}…`;
+};
+
 
 interface OpenRecordingsButtonProps {
   onClick: () => void;
@@ -337,6 +352,9 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const [downloading, setDownloading] = useState(false);
 
   const hasTranscription = entry.transcription_text.trim().length > 0;
+  const transcriptionPreview = hasTranscription
+    ? buildHistoryPreview(entry.transcription_text)
+    : "";
 
   const handleLoadAudio = useCallback(
     () => getAudioUrl(entry.file_name),
@@ -489,7 +507,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         {retrying
           ? t("settings.history.transcribing")
           : hasTranscription
-            ? entry.transcription_text
+            ? transcriptionPreview
             : t("settings.history.transcriptionFailed")}
       </p>
 
