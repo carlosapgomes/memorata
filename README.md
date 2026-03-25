@@ -1,5 +1,9 @@
 # Memorata
 
+> **Note:** Memorata is derived from [Handy](https://github.com/cjpais/Handy) by [@cjpais](https://github.com/cjpais).
+> While this project has been significantly modified and has a different focus, it reuses Handy's architecture, frontend structure, build system, and audio processing pipeline.
+> Huge thanks to the original author for creating such a solid foundation.
+
 [![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
 
 **A free, open source, and extensible speech-to-text application that works completely offline.**
