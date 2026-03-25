@@ -724,9 +724,9 @@ async unloadModelManually() : Promise<Result<null, string>> {
 async getRecordingSessionState() : Promise<RecordingSessionState> {
     return await TAURI_INVOKE("get_recording_session_state");
 },
-async startRecordingSession() : Promise<Result<RecordingSessionState, string>> {
+async startRecordingSession(options?: StartSessionOptions) : Promise<Result<RecordingSessionState, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("start_recording_session") };
+    return { status: "ok", data: await TAURI_INVOKE("start_recording_session", { options }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -820,6 +820,14 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
     else return { status: "error", error: e  as any };
 }
 },
+async downloadTranscriptFile(id: number, suggestedName: string) : Promise<Result<DownloadResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_transcript_file", { id, suggestedName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 /**
  * Checks if the Mac is a laptop by detecting battery presence
  * 
@@ -860,6 +868,7 @@ export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = "Whisper" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary"
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
+export type DownloadResult = { path: string; user_selected: boolean }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -883,6 +892,7 @@ export type PermissionAccess = "allowed" | "denied" | "unknown"
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type RecordingSessionState = "idle" | "recording" | "paused" | "processing"
+export type StartSessionOptions = { enable_diarization: boolean; speakers_expected: number }
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type SoundTheme = "marimba" | "pop" | "custom"
 export type TypingTool = "auto" | "wtype" | "kwtype" | "dotool" | "ydotool" | "xdotool"

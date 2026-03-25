@@ -422,7 +422,10 @@
       "retranscribe": "Re-transcribe",
       "retranscribeError": "Failed to re-transcribe. Please try again.",
       "transcribing": "Transcribing...",
-      "transcriptionFailed": "Transcription failed. You can re-transcribe using the retry icon."
+      "transcriptionFailed": "Transcription failed. You can re-transcribe using the retry icon.",
+      "downloadTranscript": "Download transcript",
+      "downloadSuccess": "Transcript saved successfully",
+      "downloadTranscriptError": "Failed to download transcript"
     },
     "debug": {
       "title": "Debug",
@@ -591,8 +594,22 @@
     "title": "Application Language",
     "description": "Change the language of the Handy interface"
   },
+  "recordingSession": {
+    "diarizationLabel": "Diarization",
+    "speakersLabel": "Speakers",
+    "diarizationHelp": "Configure speaker labels for this session before Start.",
+    "errors": {
+      "invalidSpeakers": "Invalid speakers value: with diarization enabled, set at least 2 speakers."
+    }
+  },
   "overlay": {
     "transcribing": "Transcribing...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "paused": "Paused",
+    "stages": {
+      "preparingAudio": "Preparing audio...",
+      "transcribing": "Transcribing...",
+      "saving": "Saving..."
+    }
   }
 }

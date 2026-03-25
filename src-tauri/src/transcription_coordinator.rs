@@ -1,9 +1,10 @@
 use crate::actions::ACTION_MAP;
+use crate::commands::transcription::StartSessionOptions;
 use crate::managers::audio::AudioRecordingManager;
 use log::{debug, error, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -18,7 +19,9 @@ enum Command {
         is_pressed: bool,
         push_to_talk: bool,
     },
-    StartSession,
+    StartSession {
+        options: StartSessionOptions,
+    },
     PauseSession,
     ResumeSession,
     StopSession,
@@ -44,6 +47,9 @@ pub struct TranscriptionCoordinator {
     is_recording: Arc<AtomicBool>,
     is_paused: Arc<AtomicBool>,
     is_processing: Arc<AtomicBool>,
+    /// Session options snapshotted at session start.
+    /// Uses RwLock for safe concurrent access from both coordinator thread and transcription service.
+    session_options: Arc<RwLock<Option<StartSessionOptions>>>,
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
@@ -56,10 +62,12 @@ impl TranscriptionCoordinator {
         let is_recording = Arc::new(AtomicBool::new(false));
         let is_paused = Arc::new(AtomicBool::new(false));
         let is_processing = Arc::new(AtomicBool::new(false));
+        let session_options = Arc::new(RwLock::new(None));
 
         let is_recording_clone = Arc::clone(&is_recording);
         let is_paused_clone = Arc::clone(&is_paused);
         let is_processing_clone = Arc::clone(&is_processing);
+        let session_options_clone = Arc::clone(&session_options);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -113,9 +121,18 @@ impl TranscriptionCoordinator {
                                 }
                             }
                         }
-                        Command::StartSession => {
+                        Command::StartSession { options } => {
                             if matches!(stage, Stage::Idle) {
                                 start(&app, &mut stage, "transcribe", "UI:start");
+
+                                // Keep snapshot only if start actually entered Recording.
+                                if let Ok(mut opts) = session_options_clone.write() {
+                                    if matches!(stage, Stage::Recording(_)) {
+                                        *opts = Some(options);
+                                    } else {
+                                        *opts = None;
+                                    }
+                                }
                             }
                         }
                         Command::PauseSession => {
@@ -156,10 +173,18 @@ impl TranscriptionCoordinator {
                                     || matches!(stage, Stage::Recording(_) | Stage::Paused(_)))
                             {
                                 stage = Stage::Idle;
+                                // Clear session options on cancel
+                                if let Ok(mut opts) = session_options_clone.write() {
+                                    *opts = None;
+                                }
                             }
                         }
                         Command::ProcessingFinished => {
                             stage = Stage::Idle;
+                            // Clear session options when processing finishes
+                            if let Ok(mut opts) = session_options_clone.write() {
+                                *opts = None;
+                            }
                         }
                     }
 
@@ -182,6 +207,7 @@ impl TranscriptionCoordinator {
             is_recording,
             is_paused,
             is_processing,
+            session_options,
         }
     }
 
@@ -208,10 +234,21 @@ impl TranscriptionCoordinator {
         }
     }
 
-    pub fn start_session(&self) {
-        if self.tx.send(Command::StartSession).is_err() {
+    /// Start a session with explicit options (from UI).
+    pub fn start_session_with_options(&self, options: StartSessionOptions) {
+        if self
+            .tx
+            .send(Command::StartSession { options })
+            .is_err()
+        {
             warn!("Transcription coordinator channel closed");
         }
+    }
+
+    /// Start a session with default options (for keyboard shortcut compatibility).
+    pub fn start_session(&self) {
+        let options = StartSessionOptions::default();
+        self.start_session_with_options(options);
     }
 
     pub fn pause_session(&self) {
@@ -260,6 +297,12 @@ impl TranscriptionCoordinator {
 
     pub fn is_processing(&self) -> bool {
         self.is_processing.load(Ordering::Relaxed)
+    }
+
+    /// Get the current session options snapshot.
+    /// Returns None if no session is active or options haven't been set.
+    pub fn get_session_options(&self) -> Option<StartSessionOptions> {
+        self.session_options.read().ok()?.clone()
     }
 }
 
@@ -314,6 +357,7 @@ fn pause(app: &AppHandle, stage: &mut Stage, binding_id: &str) {
         match audio_manager.pause_recording(binding_id) {
             Ok(()) => {
                 *stage = Stage::Paused(binding_id.to_string());
+                crate::overlay::show_paused_overlay(app);
             }
             Err(err) => {
                 warn!("Failed to pause session for '{binding_id}': {err}");
@@ -327,6 +371,7 @@ fn resume(app: &AppHandle, stage: &mut Stage, binding_id: &str) {
         match audio_manager.resume_recording(binding_id) {
             Ok(()) => {
                 *stage = Stage::Recording(binding_id.to_string());
+                crate::overlay::show_recording_overlay(app);
             }
             Err(err) => {
                 warn!("Failed to resume session for '{binding_id}': {err}");

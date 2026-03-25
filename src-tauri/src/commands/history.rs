@@ -5,6 +5,16 @@ use crate::managers::{
 };
 use std::sync::Arc;
 use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
+
+/// Result of download_transcript_file operation
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct DownloadResult {
+    /// Final path where the file was saved
+    pub path: String,
+    /// Whether the file was saved to a user-selected location (true) or to the default recordings folder (false)
+    pub user_selected: bool,
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -118,7 +128,7 @@ pub async fn retry_history_entry_transcription(
     transcription_manager.initiate_model_load();
 
     let transcription = transcription_manager
-        .transcribe(samples)
+        .transcribe(samples, None)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -184,4 +194,75 @@ pub async fn update_recording_retention_period(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+/// Download a transcript file with a save dialog.
+/// This is more reliable than the blob URL approach and gives the user control over where to save.
+#[tauri::command]
+#[specta::specta]
+pub async fn download_transcript_file(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+    suggested_name: String,
+) -> Result<DownloadResult, String> {
+    let entry = history_manager
+        .get_entry_by_id(id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry {} not found", id))?;
+
+    let transcript_text = entry
+        .post_processed_text
+        .as_deref()
+        .unwrap_or(&entry.transcription_text)
+        .trim()
+        .to_string();
+
+    if transcript_text.is_empty() {
+        return Err("No transcript available for this entry".to_string());
+    }
+
+    // Prepare suggested filename
+    let suggested_filename = suggested_name
+        .strip_suffix(".wav")
+        .unwrap_or(&suggested_name)
+        .to_string()
+        + ".txt";
+
+    // Show save dialog using the correct tauri-plugin-dialog v2 API
+    let file_path = app
+        .dialog()
+        .file()
+        .set_title("Save Transcript")
+        .set_file_name(suggested_filename)
+        .add_filter("Text File", &["txt"])
+        .blocking_save_file();
+
+    let Some(save_path) = file_path else {
+        // User cancelled the dialog
+        return Err("Download cancelled by user".to_string());
+    };
+
+    // Extract the PathBuf from FilePath enum
+    let save_path = match save_path {
+        tauri_plugin_dialog::FilePath::Url(_) => {
+            return Err("URL paths are not supported for saving".to_string());
+        }
+        tauri_plugin_dialog::FilePath::Path(path) => path,
+    };
+
+    // Write the transcript to the chosen location
+    std::fs::write(&save_path, &transcript_text).map_err(|e| {
+        format!(
+            "Failed to write transcript to {}: {}",
+            save_path.display(),
+            e
+        )
+    })?;
+
+    Ok(DownloadResult {
+        path: save_path.to_string_lossy().to_string(),
+        user_selected: true,
+    })
 }

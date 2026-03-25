@@ -422,7 +422,10 @@
       "retranscribe": "Re-transcrever",
       "retranscribeError": "Falha ao re-transcrever. Por favor, tente novamente.",
       "transcribing": "Transcrevendo...",
-      "transcriptionFailed": "A transcrição falhou. Você pode re-transcrever usando o ícone de tentar novamente."
+      "transcriptionFailed": "A transcrição falhou. Você pode re-transcrever usando o ícone de tentar novamente.",
+      "downloadTranscript": "Baixar transcrição",
+      "downloadSuccess": "Transcrição salva com sucesso",
+      "downloadTranscriptError": "Falha ao baixar transcrição"
     },
     "debug": {
       "title": "Depuração",
@@ -591,8 +594,22 @@
     "title": "Idioma da Aplicação",
     "description": "Alterar o idioma da interface do Handy"
   },
+  "recordingSession": {
+    "diarizationLabel": "Diarização",
+    "speakersLabel": "Speakers",
+    "diarizationHelp": "Configure os speakers desta sessão antes de iniciar.",
+    "errors": {
+      "invalidSpeakers": "Valor de speakers inválido: com diarização ativa, informe pelo menos 2 speakers."
+    }
+  },
   "overlay": {
     "transcribing": "Transcrevendo...",
-    "processing": "Processando..."
+    "processing": "Processando...",
+    "paused": "Pausado",
+    "stages": {
+      "preparingAudio": "Preparando áudio...",
+      "transcribing": "Transcrevendo...",
+      "saving": "Salvando..."
+    }
   }
 }

@@ -72,7 +72,8 @@ Configuration is file-based (no UI selector yet).
   "assembly_ai_api_key": "",
   "assembly_ai_base_url": "https://api.assemblyai.com/v2",
   "assembly_ai_poll_interval_ms": 2000,
-  "assembly_ai_timeout_seconds": 10800
+  "assembly_ai_timeout_seconds": 10800,
+  "assembly_ai_language_code": "auto"
 }
 ```
 
@@ -81,14 +82,49 @@ AssemblyAI mode example:
 ```json
 {
   "transcription_backend": "assembly_ai",
-  "assembly_ai_api_key": "YOUR_API_KEY"
+  "assembly_ai_api_key": "YOUR_API_KEY",
+  "assembly_ai_language_code": "auto"
 }
 ```
+
+Force Portuguese transcription:
+
+```json
+{
+  "transcription_backend": "assembly_ai",
+  "assembly_ai_api_key": "YOUR_API_KEY",
+  "assembly_ai_language_code": "pt"
+}
+```
+
+**Language code options:**
+
+| Value | Behavior |
+|-------|----------|
+| `"auto"` | Enables automatic language detection (default) |
+| `"pt"` | Forces Portuguese (Brazilian or European) |
+| `"en"` | Forces English |
+| `"en_us"` | Forces US English |
+| `"es"` | Forces Spanish |
+| `"de"` | Forces German |
 
 Notes:
 
 - If `transcription_backend` is `assembly_ai` and API fails, the app returns explicit failure (no automatic fallback to local).
 - For recordings around 1-2 hours, keep `assembly_ai_timeout_seconds` high enough (default is 3h).
+
+### Session diarization (Start flow)
+
+Diarization is configured per recording session in the Start controls:
+
+- `Diarization` ON + `Speakers = 2` (or higher): sends `speaker_labels: true` and `speakers_expected` to AssemblyAI.
+- `Diarization` OFF: UI forces `Speakers = 1` and does not send diarization fields.
+
+Behavior details:
+
+- Options are snapshotted at Start and kept stable for that session.
+- Changing checkbox/field after Start does not change the in-progress session.
+- If diarization is ON and AssemblyAI returns no valid `utterances`, Memorata returns an explicit error.
 
 ## Integrations
 

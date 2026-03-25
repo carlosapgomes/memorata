@@ -33,6 +33,22 @@ struct TranscriptionErrorEvent {
     detail: Option<String>,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct ProcessingStageEvent {
+    stage: String,
+}
+
+fn emit_processing_stage(app: &AppHandle, stage: &str) {
+    if let Some(overlay_window) = app.get_webview_window("recording_overlay") {
+        let _ = overlay_window.emit(
+            "processing-stage-changed",
+            ProcessingStageEvent {
+                stage: stage.to_string(),
+            },
+        );
+    }
+}
+
 fn classify_transcription_error(error_message: &str) -> &'static str {
     let msg = error_message.to_lowercase();
 
@@ -523,6 +539,9 @@ impl ShortcutAction for TranscribeAction {
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
                 } else {
+                    // Emit preparing_audio stage
+                    emit_processing_stage(&ah, "preparing_audio");
+
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
                     let file_name = format!("memorata-{}.wav", chrono::Utc::now().timestamp());
@@ -533,9 +552,15 @@ impl ShortcutAction for TranscribeAction {
                         crate::audio_toolkit::save_wav_file(&wav_path, &samples_for_wav)
                     });
 
+                    // Emit transcribing stage
+                    emit_processing_stage(&ah, "transcribing");
+
                     // Transcribe concurrently with WAV save
                     let transcription_time = Instant::now();
-                    let transcription_result = tm.transcribe(samples).await;
+                    let session_options = ah
+                        .try_state::<TranscriptionCoordinator>()
+                        .and_then(|coordinator| coordinator.get_session_options());
+                    let transcription_result = tm.transcribe(samples, session_options).await;
 
                     // Await WAV save and verify
                     let wav_saved = match wav_handle.await {
@@ -575,6 +600,9 @@ impl ShortcutAction for TranscribeAction {
                             let processed =
                                 process_transcription_output(&ah, &transcription, post_process)
                                     .await;
+
+                            // Emit saving stage
+                            emit_processing_stage(&ah, "saving");
 
                             // Save to history if WAV was saved
                             if wav_saved {
