@@ -217,23 +217,22 @@ export const HistorySettings: React.FC = () => {
   };
 
   const downloadTranscriptEntry = async (id: number, fileName: string) => {
-    const result = await commands.exportTranscriptFile(id);
-    if (result.status !== "ok") {
-      throw new Error(String(result.error));
+    const result = await commands.downloadTranscriptFile(id, fileName);
+    if (result.status === "ok") {
+      toast.success(
+        t("settings.history.downloadSuccess", {
+          defaultValue: "Transcript saved",
+        }),
+      );
+    } else {
+      // Check if user cancelled
+      const errorMsg = String(result.error);
+      if (errorMsg.includes("cancelled")) {
+        // User cancelled - don't show error toast
+        return;
+      }
+      throw new Error(errorMsg);
     }
-
-    const fileData = await readFile(result.data);
-    const blob = new Blob([fileData], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName.replace(/\.wav$/i, ".txt");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
   };
 
   const retryHistoryEntry = async (id: number) => {
@@ -335,6 +334,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const hasTranscription = entry.transcription_text.trim().length > 0;
 
@@ -375,11 +375,12 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   };
 
   const handleDownloadTranscript = async () => {
-    if (!hasTranscription || retrying) {
+    if (!hasTranscription || retrying || downloading) {
       return;
     }
 
     try {
+      setDownloading(true);
       await downloadTranscript(entry.id, entry.file_name);
     } catch (error) {
       console.error("Failed to download transcript:", error);
@@ -388,6 +389,8 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           defaultValue: "Failed to download transcript",
         }),
       );
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -400,7 +403,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}
-            disabled={!hasTranscription || retrying}
+            disabled={!hasTranscription || retrying || downloading}
             title={t("settings.history.copyToClipboard")}
           >
             {showCopied ? (
@@ -411,7 +414,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={handleDownloadTranscript}
-            disabled={!hasTranscription || retrying}
+            disabled={!hasTranscription || retrying || downloading}
             title={
               t("settings.history.downloadTranscript", {
                 defaultValue: "Download transcript",
@@ -422,7 +425,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={onToggleSaved}
-            disabled={retrying}
+            disabled={retrying || downloading}
             active={entry.saved}
             title={
               entry.saved
@@ -438,7 +441,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={handleRetranscribe}
-            disabled={retrying}
+            disabled={retrying || downloading}
             title={t("settings.history.retranscribe")}
           >
             <RotateCcw
@@ -453,7 +456,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={handleDeleteEntry}
-            disabled={retrying}
+            disabled={retrying || downloading}
             title={t("settings.history.delete")}
           >
             <Trash2 width={16} height={16} />

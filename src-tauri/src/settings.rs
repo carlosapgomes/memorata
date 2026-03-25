@@ -345,6 +345,8 @@ pub struct AppSettings {
     pub assembly_ai_poll_interval_ms: u64,
     #[serde(default = "default_assembly_ai_timeout_seconds")]
     pub assembly_ai_timeout_seconds: u64,
+    #[serde(default = "default_assembly_ai_language_code")]
+    pub assembly_ai_language_code: String,
     #[serde(default = "default_always_on_microphone")]
     pub always_on_microphone: bool,
     #[serde(default)]
@@ -438,6 +440,10 @@ fn default_assembly_ai_poll_interval_ms() -> u64 {
 
 fn default_assembly_ai_timeout_seconds() -> u64 {
     10_800
+}
+
+fn default_assembly_ai_language_code() -> String {
+    "auto".to_string()
 }
 
 fn default_always_on_microphone() -> bool {
@@ -769,6 +775,7 @@ pub fn get_default_settings() -> AppSettings {
         assembly_ai_base_url: default_assembly_ai_base_url(),
         assembly_ai_poll_interval_ms: default_assembly_ai_poll_interval_ms(),
         assembly_ai_timeout_seconds: default_assembly_ai_timeout_seconds(),
+        assembly_ai_language_code: default_assembly_ai_language_code(),
         always_on_microphone: false,
         selected_microphone: None,
         clamshell_microphone: None,
@@ -962,5 +969,6 @@ mod tests {
         );
         assert_eq!(settings.assembly_ai_poll_interval_ms, 2_000);
         assert_eq!(settings.assembly_ai_timeout_seconds, 10_800);
+        assert_eq!(settings.assembly_ai_language_code, "auto");
     }
 }

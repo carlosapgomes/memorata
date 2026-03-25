@@ -1,4 +1,5 @@
 use std::{
+    any::TypeId,
     io::Error,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -30,6 +31,22 @@ enum Cmd {
 enum AudioChunk {
     Samples(Vec<f32>),
     EndOfStream,
+}
+
+/// Some Linux/Pulse/ALSA paths expose microphone data as right-justified 24-bit
+/// PCM packed into i32 samples. Generic i32 -> f32 conversion normalizes by
+/// i32::MAX, which attenuates the signal by ~48dB in that case.
+const I32_RIGHT_JUSTIFIED_24BIT_GAIN: f32 = 256.0;
+
+fn normalize_input_sample<T>(sample: f32) -> f32
+where
+    T: 'static,
+{
+    if TypeId::of::<T>() == TypeId::of::<i32>() {
+        (sample * I32_RIGHT_JUSTIFIED_24BIT_GAIN).clamp(-1.0, 1.0)
+    } else {
+        sample.clamp(-1.0, 1.0)
+    }
 }
 
 pub struct AudioRecorder {
@@ -264,7 +281,9 @@ impl AudioRecorder {
             output_buffer.clear();
 
             if channels == 1 {
-                output_buffer.extend(data.iter().map(|&sample| sample.to_sample::<f32>()));
+                output_buffer.extend(data.iter().map(|&sample| {
+                    normalize_input_sample::<T>(sample.to_sample::<f32>())
+                }));
             } else {
                 let frame_count = data.len() / channels;
                 output_buffer.reserve(frame_count);
@@ -275,7 +294,7 @@ impl AudioRecorder {
                         .map(|&sample| sample.to_sample::<f32>())
                         .sum::<f32>()
                         / channels as f32;
-                    output_buffer.push(mono_sample);
+                    output_buffer.push(normalize_input_sample::<T>(mono_sample));
                 }
             }
 
@@ -367,7 +386,9 @@ pub fn is_no_input_device_error(error_message: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_microphone_access_denied, is_no_input_device_error};
+    use super::{
+        is_microphone_access_denied, is_no_input_device_error, normalize_input_sample,
+    };
 
     #[test]
     fn detects_access_is_denied() {
@@ -405,6 +426,22 @@ mod tests {
     fn does_not_match_other_errors_for_no_device() {
         assert!(!is_no_input_device_error("permission denied"));
         assert!(!is_no_input_device_error("device not found"));
+    }
+
+    #[test]
+    fn normalizes_i32_right_justified_24bit_to_full_scale() {
+        // Typical max positive value for signed 24-bit PCM packed in i32.
+        let packed_i24_max_as_i32 = 0x007F_FFFF_i32;
+        let raw = packed_i24_max_as_i32 as f32 / i32::MAX as f32;
+        let normalized = normalize_input_sample::<i32>(raw);
+        assert!(normalized > 0.99, "normalized={normalized}");
+    }
+
+    #[test]
+    fn keeps_i16_normalization_unchanged() {
+        let raw_half_scale_i16 = 0.5_f32;
+        let normalized = normalize_input_sample::<i16>(raw_half_scale_i16);
+        assert!((normalized - 0.5).abs() < 1e-6, "normalized={normalized}");
     }
 }
 

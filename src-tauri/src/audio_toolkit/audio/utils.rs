@@ -40,7 +40,8 @@ pub fn save_wav_file<P: AsRef<Path>>(file_path: P, samples: &[f32]) -> Result<()
 
     // Convert f32 samples to i16 for WAV
     for sample in samples {
-        let sample_i16 = (sample * i16::MAX as f32) as i16;
+        let clamped = sample.clamp(-1.0, 1.0);
+        let sample_i16 = (clamped * i16::MAX as f32) as i16;
         writer.write_sample(sample_i16)?;
     }
 

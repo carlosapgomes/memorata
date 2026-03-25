@@ -1,6 +1,6 @@
 .recording-overlay {
   height: 36px;
-  width: 172px;
+  width: 200px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -15,6 +15,26 @@
 .overlay-left {
   display: flex;
   align-items: center;
+}
+
+.overlay-left.icon-pulse {
+  animation: icon-pulse 1.2s infinite ease-in-out;
+}
+
+.overlay-left.icon-paused {
+  opacity: 0.5;
+}
+
+@keyframes icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 .overlay-middle {
@@ -92,4 +112,17 @@
 
 .cancel-button:active {
   transform: scale(0.95);
+}
+
+.timer {
+  color: #ffe5ee;
+  font-size: 11px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+  margin-left: 8px;
+  min-width: 50px;
+}
+
+.timer-paused {
+  color: #888;
 }
