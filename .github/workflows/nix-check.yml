@@ -36,6 +36,8 @@ concurrency:
 jobs:
   nix-build:
     runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     continue-on-error: false
     steps:
       - uses: actions/checkout@v4

@@ -44,7 +44,7 @@ jobs:
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
       sign-binaries: true
-      asset-prefix: "handy-pr-${{ inputs.pr_number }}"
+      asset-prefix: "memorata-pr-${{ inputs.pr_number }}"
       upload-artifacts: true
       is-debug-build: ${{ contains(matrix.args, '--debug') }}
       ref: ${{ format('refs/pull/{0}/merge', inputs.pr_number) }}
@@ -53,6 +53,8 @@ jobs:
   comment-on-pr:
     needs: build-test
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       pull-requests: write
     steps:
