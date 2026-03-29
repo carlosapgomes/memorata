@@ -75,6 +75,16 @@ jobs:
       platform: ${{ matrix.platform }}
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
+      # Current mode: unsigned release artifacts.
+      # build.yml handles this by patching tauri.conf.json in CI only to:
+      # - disable updater artifact signing
+      # - disable Windows custom sign command
+      # and by not exporting signing-related env vars to tauri-action.
+      #
+      # To re-enable signed releases later:
+      # 1) set sign-binaries: true
+      # 2) provide APPLE_*, AZURE_* and TAURI_SIGNING_* repository secrets
+      # 3) keep signing settings in src-tauri/tauri.conf.json
       sign-binaries: false
       asset-prefix: "memorata"
       upload-artifacts: false
