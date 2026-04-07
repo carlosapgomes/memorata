@@ -8,13 +8,17 @@ import { useSettings } from "../../../hooks/useSettings";
 import { VolumeSlider } from "../VolumeSlider";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { ModelSettingsCard } from "./ModelSettingsCard";
+import { TranscriptionSettingsCard } from "./TranscriptionSettingsCard";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { audioFeedbackEnabled } = useSettings();
+  const { audioFeedbackEnabled, settings } = useSettings();
+  const transcriptionBackend = settings?.transcription_backend ?? "local";
+
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <ModelSettingsCard />
+      <TranscriptionSettingsCard />
+      {transcriptionBackend === "local" && <ModelSettingsCard />}
       <SettingsGroup title={t("settings.sound.title")}>
         <MicrophoneSelector descriptionMode="tooltip" grouped={true} />
         <MuteWhileRecording descriptionMode="tooltip" grouped={true} />

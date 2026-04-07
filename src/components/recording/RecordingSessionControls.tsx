@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { commands, RecordingSessionState, StartSessionOptions } from "@/bindings";
+import {
+  commands,
+  RecordingSessionState,
+  StartSessionOptions,
+} from "@/bindings";
 import { Button } from "@/components/ui";
 
 const STATE_LABEL: Record<RecordingSessionState, string> = {
@@ -20,9 +24,9 @@ const formatSessionError = (errorCode: string) => {
     case "coordinator_unavailable":
       return "Falha interna ao iniciar controle de sessão. Reinicie o app.";
     case "assembly_ai_api_key_missing":
-      return "AssemblyAI sem chave de API. Configure assembly_ai_api_key no settings_store.json.";
+      return "AssemblyAI sem chave de API. Configure a chave em Settings > General.";
     case "assembly_ai_base_url_invalid":
-      return "assembly_ai_base_url inválida. Use URL http(s) válida no settings_store.json.";
+      return "assembly_ai_base_url inválida. Use uma URL http(s) válida nas configurações do app.";
     case "local_model_not_selected":
       return "Nenhum modelo local selecionado. Defina selected_model nas configurações.";
     case "assembly_ai_speakers_expected_invalid":
@@ -42,14 +46,26 @@ export default function RecordingSessionControls() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartRef = useRef<number | null>(null);
 
-  const canStart = useMemo(() => !isLoading && state === "idle", [isLoading, state]);
-  const canPause = useMemo(() => !isLoading && state === "recording", [isLoading, state]);
-  const canResume = useMemo(() => !isLoading && state === "paused", [isLoading, state]);
+  const canStart = useMemo(
+    () => !isLoading && state === "idle",
+    [isLoading, state],
+  );
+  const canPause = useMemo(
+    () => !isLoading && state === "recording",
+    [isLoading, state],
+  );
+  const canResume = useMemo(
+    () => !isLoading && state === "paused",
+    [isLoading, state],
+  );
   const canStop = useMemo(
     () => !isLoading && (state === "recording" || state === "paused"),
     [isLoading, state],
   );
-  const sessionControlsDisabled = useMemo(() => isLoading || state !== "idle", [isLoading, state]);
+  const sessionControlsDisabled = useMemo(
+    () => isLoading || state !== "idle",
+    [isLoading, state],
+  );
 
   const formatTime = (totalSeconds: number): string => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -87,11 +103,13 @@ export default function RecordingSessionControls() {
     if (state === "recording") {
       if (!timerRef.current) {
         if (recordingStartRef.current === null) {
-          recordingStartRef.current = Date.now() - (recordingSeconds * 1000);
+          recordingStartRef.current = Date.now() - recordingSeconds * 1000;
         }
         timerRef.current = setInterval(() => {
           if (recordingStartRef.current !== null) {
-            const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
+            const elapsed = Math.floor(
+              (Date.now() - recordingStartRef.current) / 1000,
+            );
             setRecordingSeconds(elapsed);
           }
         }, 1000);
@@ -197,18 +215,25 @@ export default function RecordingSessionControls() {
     <div className="w-full max-w-[720px] rounded-xl border border-mid-gray/20 p-4 bg-black/10">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${
-            state === "recording" ? "bg-red-500 animate-pulse" :
-            state === "paused" ? "bg-yellow-500" :
-            state === "processing" ? "bg-blue-500" :
-            "bg-gray-500"
-          }`} />
+          <div
+            className={`w-3 h-3 rounded-full ${
+              state === "recording"
+                ? "bg-red-500 animate-pulse"
+                : state === "paused"
+                  ? "bg-yellow-500"
+                  : state === "processing"
+                    ? "bg-blue-500"
+                    : "bg-gray-500"
+            }`}
+          />
           <div>
             <div className="text-sm text-mid-gray">Recording session</div>
             <div className="text-lg font-semibold flex items-center gap-2">
               {STATE_LABEL[state]}
               {(state === "recording" || state === "paused") && (
-                <span className={`text-sm font-mono ${state === "paused" ? "text-yellow-400" : "text-mid-gray"}`}>
+                <span
+                  className={`text-sm font-mono ${state === "paused" ? "text-yellow-400" : "text-mid-gray"}`}
+                >
                   {formatTime(recordingSeconds)}
                 </span>
               )}
@@ -265,7 +290,9 @@ export default function RecordingSessionControls() {
       </div>
 
       {lastError ? (
-        <p className="mt-3 text-xs text-red-400">{formatSessionError(lastError)}</p>
+        <p className="mt-3 text-xs text-red-400">
+          {formatSessionError(lastError)}
+        </p>
       ) : null}
     </div>
   );

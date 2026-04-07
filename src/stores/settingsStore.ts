@@ -111,6 +111,12 @@ const settingUpdaters: {
     commands.changeTranslateToEnglishSetting(value as boolean),
   selected_language: (value) =>
     commands.changeSelectedLanguageSetting(value as string),
+  transcription_backend: (value) =>
+    commands.changeTranscriptionBackendSetting(value as string),
+  assembly_ai_api_key: (value) =>
+    commands.changeAssemblyAiApiKeySetting(value as string),
+  assembly_ai_language_code: (value) =>
+    commands.changeAssemblyAiLanguageCodeSetting(value as string),
   overlay_position: (value) =>
     commands.changeOverlayPositionSetting(value as string),
   debug_mode: (value) => commands.changeDebugModeSetting(value as boolean),

@@ -536,6 +536,52 @@ pub fn change_selected_language_setting(app: AppHandle, language: String) -> Res
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_transcription_backend_setting(
+    app: AppHandle,
+    backend: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.transcription_backend = match backend.as_str() {
+        "local" => settings::TranscriptionBackend::Local,
+        "assembly_ai" => settings::TranscriptionBackend::AssemblyAi,
+        other => return Err(format!("Invalid transcription backend: {other}")),
+    };
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_assembly_ai_api_key_setting(app: AppHandle, api_key: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.assembly_ai_api_key = api_key.trim().to_string();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_assembly_ai_language_code_setting(
+    app: AppHandle,
+    language_code: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let normalized_input = if language_code.trim().is_empty() {
+        "auto".to_string()
+    } else {
+        language_code.trim().to_string()
+    };
+
+    crate::managers::transcription_service::validate_assembly_ai_language_code(&normalized_input)
+        .map_err(|e| format!("Invalid AssemblyAI language code: {e}"))?;
+
+    settings.assembly_ai_language_code = normalized_input;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_overlay_position_setting(app: AppHandle, position: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     let parsed = match position.as_str() {

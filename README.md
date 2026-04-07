@@ -54,6 +54,7 @@ The process is entirely local:
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
 
 **Platform-specific guides:**
+
 - [Building on Windows](BUILD-WINDOWS.md) — step-by-step instructions for Windows
 
 ### Transcription Backends (MVP)
@@ -63,11 +64,17 @@ Memorata currently supports two transcription backends:
 - `local` (default): uses local models configured by `selected_model`
 - `assembly_ai`: sends audio to AssemblyAI API and returns transcript text
 
-Configuration is file-based (no UI selector yet).
+Configuration is available in the app UI under `Settings > General`.
 
-1) Open your app data directory (see Troubleshooting section below)
-2) Edit `settings_store.json`
-3) Update the `settings` object with:
+Available options:
+
+- `transcription_backend`: `local` or `assembly_ai`
+- `assembly_ai_api_key`
+- `assembly_ai_language_code`
+
+The app persists these values automatically to the same runtime settings store it already uses (`settings_store.json` in the app data directory, or `Data/settings_store.json` in portable mode).
+
+If you need to edit the file manually, the equivalent settings object is:
 
 ```json
 {
@@ -103,14 +110,14 @@ Force Portuguese transcription:
 
 **Language code options:**
 
-| Value | Behavior |
-|-------|----------|
-| `"auto"` | Enables automatic language detection (default) |
-| `"pt"` | Forces Portuguese (Brazilian or European) |
-| `"en"` | Forces English |
-| `"en_us"` | Forces US English |
-| `"es"` | Forces Spanish |
-| `"de"` | Forces German |
+| Value     | Behavior                                       |
+| --------- | ---------------------------------------------- |
+| `"auto"`  | Enables automatic language detection (default) |
+| `"pt"`    | Forces Portuguese (Brazilian or European)      |
+| `"en"`    | Forces English                                 |
+| `"en_us"` | Forces US English                              |
+| `"es"`    | Forces Spanish                                 |
+| `"de"`    | Forces German                                  |
 
 Notes:
 

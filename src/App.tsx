@@ -131,7 +131,7 @@ function App() {
         const description = (() => {
           switch (error_type) {
             case "assembly_ai_api_key_missing":
-              return "Configure a chave da AssemblyAI no settings_store.json (assembly_ai_api_key).";
+              return "Configure a chave da AssemblyAI em Settings > General.";
             case "assembly_ai_timeout":
               return "A transcrição na AssemblyAI expirou por tempo. Tente novamente ou aumente o timeout.";
             case "assembly_ai_transcription_failed":
