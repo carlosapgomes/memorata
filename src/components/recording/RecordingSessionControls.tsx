@@ -5,6 +5,8 @@ import {
   StartSessionOptions,
 } from "@/bindings";
 import { Button } from "@/components/ui";
+import { useSettings } from "@/hooks/useSettings";
+import { toast } from "sonner";
 
 const STATE_LABEL: Record<RecordingSessionState, string> = {
   idle: "Idle",
@@ -36,13 +38,40 @@ const formatSessionError = (errorCode: string) => {
   }
 };
 
+const formatPostProcessError = (errorCode: string) => {
+  switch (errorCode) {
+    case "post_process_disabled":
+      return "Ative o pós-processamento nas configurações para usar esta ação manual.";
+    case "post_process_provider_missing":
+      return "Selecione um provedor de pós-processamento (ex.: OpenRouter).";
+    case "post_process_api_key_missing":
+      return "A chave de API do provedor selecionado não está configurada.";
+    case "post_process_model_missing":
+      return "Selecione um modelo para o provedor de pós-processamento.";
+    case "post_process_prompt_not_selected":
+      return "Selecione um prompt de pós-processamento.";
+    case "post_process_prompt_not_found":
+      return "O prompt selecionado não foi encontrado. Selecione outro prompt.";
+    case "post_process_prompt_empty":
+      return "O prompt selecionado está vazio.";
+    case "history_entry_not_found":
+      return "Nenhuma transcrição concluída foi encontrada para pós-processar.";
+    case "post_process_failed":
+      return "Falha ao aplicar o pós-processamento. Verifique provedor, modelo e prompt.";
+    default:
+      return `Erro no pós-processamento: ${errorCode}`;
+  }
+};
+
 export default function RecordingSessionControls() {
+  const { getSetting, updateSetting, isUpdating } = useSettings();
   const [state, setState] = useState<RecordingSessionState>("idle");
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [diarizationEnabled, setDiarizationEnabled] = useState(true);
   const [speakersExpected, setSpeakersExpected] = useState(2);
+  const [isPostProcessing, setIsPostProcessing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -66,6 +95,18 @@ export default function RecordingSessionControls() {
     () => isLoading || state !== "idle",
     [isLoading, state],
   );
+
+  const autoPostProcessOnStop =
+    getSetting("auto_post_process_on_session_stop") ?? false;
+  const isAutoPostProcessUpdating = isUpdating(
+    "auto_post_process_on_session_stop",
+  );
+
+  const canManualPostProcess =
+    !isLoading &&
+    !isPostProcessing &&
+    state === "idle" &&
+    !autoPostProcessOnStop;
 
   const formatTime = (totalSeconds: number): string => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -211,6 +252,29 @@ export default function RecordingSessionControls() {
     }
   };
 
+  const handleManualPostProcess = async () => {
+    setIsPostProcessing(true);
+    try {
+      const result = await commands.postProcessLatestHistoryEntry();
+      if (result.status === "ok") {
+        toast.success("Pós-processamento concluído", {
+          description:
+            "A última transcrição foi atualizada com o resultado do prompt.",
+        });
+      } else {
+        toast.error("Falha no pós-processamento", {
+          description: formatPostProcessError(result.error),
+        });
+      }
+    } catch (error) {
+      toast.error("Falha no pós-processamento", {
+        description: String(error),
+      });
+    } finally {
+      setIsPostProcessing(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-[720px] rounded-xl border border-mid-gray/20 p-4 bg-black/10">
       <div className="flex items-center justify-between gap-3">
@@ -287,6 +351,35 @@ export default function RecordingSessionControls() {
             }}
           />
         </label>
+      </div>
+
+      <div className="mt-4 flex flex-col md:flex-row md:items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-mid-gray">
+          <input
+            type="checkbox"
+            checked={autoPostProcessOnStop}
+            disabled={isAutoPostProcessUpdating || state !== "idle"}
+            onChange={(event) =>
+              void updateSetting(
+                "auto_post_process_on_session_stop",
+                event.target.checked,
+              )
+            }
+          />
+          Auto pós-processar ao clicar em Stop
+        </label>
+
+        <Button
+          onClick={handleManualPostProcess}
+          disabled={!canManualPostProcess}
+          title={
+            autoPostProcessOnStop
+              ? "Desative o auto pós-processamento para usar este botão manual."
+              : "Aplica o prompt na última transcrição concluída"
+          }
+        >
+          {isPostProcessing ? "Pós-processando..." : "Pós-processar agora"}
+        </Button>
       </div>
 
       {lastError ? (

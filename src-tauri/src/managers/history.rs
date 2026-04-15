@@ -340,6 +340,49 @@ impl HistoryManager {
         Ok(entry)
     }
 
+    /// Update only post-processing output for an existing history entry.
+    pub fn update_post_process_result(
+        &self,
+        id: i64,
+        post_processed_text: String,
+        post_process_prompt: Option<String>,
+        post_process_requested: bool,
+    ) -> Result<HistoryEntry> {
+        let conn = self.get_connection()?;
+        let updated = conn.execute(
+            "UPDATE transcription_history
+             SET post_processed_text = ?1,
+                 post_process_prompt = ?2,
+                 post_process_requested = ?3
+             WHERE id = ?4",
+            params![post_processed_text, post_process_prompt, post_process_requested, id],
+        )?;
+
+        if updated == 0 {
+            return Err(anyhow!("History entry {} not found", id));
+        }
+
+        let entry = conn
+            .query_row(
+                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                 FROM transcription_history WHERE id = ?1",
+                params![id],
+                Self::map_history_entry,
+            )?;
+
+        debug!("Updated post-processing output for history entry {}", id);
+
+        if let Err(e) = (HistoryUpdatePayload::Updated {
+            entry: entry.clone(),
+        })
+        .emit(&self.app_handle)
+        {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(entry)
+    }
+
     pub fn cleanup_old_entries(&self) -> Result<()> {
         let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
 

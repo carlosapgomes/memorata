@@ -123,7 +123,15 @@ impl TranscriptionCoordinator {
                         }
                         Command::StartSession { options } => {
                             if matches!(stage, Stage::Idle) {
-                                start(&app, &mut stage, "transcribe", "UI:start");
+                                let selected_binding = if crate::settings::get_settings(&app)
+                                    .auto_post_process_on_session_stop
+                                {
+                                    "transcribe_with_post_process"
+                                } else {
+                                    "transcribe"
+                                };
+
+                                start(&app, &mut stage, selected_binding, "UI:start");
 
                                 // Keep snapshot only if start actually entered Recording.
                                 if let Ok(mut opts) = session_options_clone.write() {

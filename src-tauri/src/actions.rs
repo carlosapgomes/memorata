@@ -601,6 +601,19 @@ impl ShortcutAction for TranscribeAction {
                                 process_transcription_output(&ah, &transcription, post_process)
                                     .await;
 
+                            if post_process && processed.post_processed_text.is_none() {
+                                let _ = ah.emit(
+                                    "transcription-error",
+                                    TranscriptionErrorEvent {
+                                        error_type: "post_process_failed".to_string(),
+                                        detail: Some(
+                                            "Pós-processamento não foi aplicado. Verifique provider, modelo, prompt e chave da API."
+                                                .to_string(),
+                                        ),
+                                    },
+                                );
+                            }
+
                             // Emit saving stage
                             emit_processing_stage(&ah, "saving");
 

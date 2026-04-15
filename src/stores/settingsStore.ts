@@ -135,6 +135,8 @@ const settingUpdaters: {
   history_limit: (value) => commands.updateHistoryLimit(value as number),
   post_process_enabled: (value) =>
     commands.changePostProcessEnabledSetting(value as boolean),
+  auto_post_process_on_session_stop: (value) =>
+    commands.changeAutoPostProcessOnSessionStopSetting(value as boolean),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
   mute_while_recording: (value) =>

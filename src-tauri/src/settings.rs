@@ -397,6 +397,8 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    #[serde(default = "default_auto_post_process_on_session_stop")]
+    pub auto_post_process_on_session_stop: bool,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
@@ -514,6 +516,10 @@ fn default_sound_theme() -> SoundTheme {
 }
 
 fn default_post_process_enabled() -> bool {
+    false
+}
+
+fn default_auto_post_process_on_session_stop() -> bool {
     false
 }
 
@@ -801,6 +807,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        auto_post_process_on_session_stop: default_auto_post_process_on_session_stop(),
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),

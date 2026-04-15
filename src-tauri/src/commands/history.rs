@@ -1,8 +1,9 @@
 use crate::actions::process_transcription_output;
 use crate::managers::{
-    history::{HistoryManager, PaginatedHistory},
+    history::{HistoryEntry, HistoryManager, PaginatedHistory},
     transcription_service::TranscriptionService,
 };
+use crate::settings::{get_settings, APPLE_INTELLIGENCE_PROVIDER_ID};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
@@ -146,6 +147,81 @@ pub async fn retry_history_entry_transcription(
             processed.post_process_prompt,
         )
         .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn post_process_latest_history_entry(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+) -> Result<HistoryEntry, String> {
+    let settings = get_settings(&app);
+
+    if !settings.post_process_enabled {
+        return Err("post_process_disabled".to_string());
+    }
+
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or_else(|| "post_process_provider_missing".to_string())?;
+
+    let model = settings
+        .post_process_models
+        .get(&provider.id)
+        .map(|m| m.trim())
+        .unwrap_or("");
+    if model.is_empty() {
+        return Err("post_process_model_missing".to_string());
+    }
+
+    let prompt_id = settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .ok_or_else(|| "post_process_prompt_not_selected".to_string())?;
+
+    let prompt = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| &p.id == prompt_id)
+        .ok_or_else(|| "post_process_prompt_not_found".to_string())?;
+
+    if prompt.prompt.trim().is_empty() {
+        return Err("post_process_prompt_empty".to_string());
+    }
+
+    if provider.id != "custom" && provider.id != APPLE_INTELLIGENCE_PROVIDER_ID {
+        let api_key = settings
+            .post_process_api_keys
+            .get(&provider.id)
+            .map(|k| k.trim())
+            .unwrap_or("");
+        if api_key.is_empty() {
+            return Err("post_process_api_key_missing".to_string());
+        }
+    }
+
+    let entry = history_manager
+        .get_latest_completed_entry()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "history_entry_not_found".to_string())?;
+
+    let processed = process_transcription_output(&app, &entry.transcription_text, true).await;
+    let post_processed_text = processed
+        .post_processed_text
+        .ok_or_else(|| "post_process_failed".to_string())?;
+
+    history_manager
+        .save_transcript_artifact(&entry.file_name, &processed.final_text)
+        .map_err(|e| e.to_string())?;
+
+    history_manager
+        .update_post_process_result(
+            entry.id,
+            post_processed_text,
+            processed.post_process_prompt,
+            true,
+        )
         .map_err(|e| e.to_string())
 }
 

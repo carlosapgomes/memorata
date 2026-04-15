@@ -138,6 +138,11 @@ function App() {
               return "A AssemblyAI retornou falha no processamento do áudio.";
             case "local_model_unavailable":
               return "Modelo local indisponível. Verifique selected_model e downloads de modelo.";
+            case "post_process_failed":
+              return (
+                detail ??
+                "A transcrição foi concluída, mas o pós-processamento falhou ou não estava configurado."
+              );
             default:
               return detail ?? "Falha desconhecida durante a transcrição.";
           }

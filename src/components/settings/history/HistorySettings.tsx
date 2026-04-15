@@ -291,7 +291,11 @@ export const HistorySettings: React.FC = () => {
               key={entry.id}
               entry={entry}
               onToggleSaved={() => toggleSaved(entry.id)}
-              onCopyText={() => copyToClipboard(entry.transcription_text)}
+              onCopyText={() =>
+                copyToClipboard(
+                  entry.post_processed_text ?? entry.transcription_text,
+                )
+              }
               getAudioUrl={getAudioUrl}
               deleteAudio={deleteAudioEntry}
               retryTranscription={retryHistoryEntry}
@@ -351,9 +355,13 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const [retrying, setRetrying] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const hasTranscription = entry.transcription_text.trim().length > 0;
+  const displayText =
+    entry.post_processed_text?.trim().length
+      ? entry.post_processed_text
+      : entry.transcription_text;
+  const hasTranscription = displayText.trim().length > 0;
   const transcriptionPreview = hasTranscription
-    ? buildHistoryPreview(entry.transcription_text)
+    ? buildHistoryPreview(displayText)
     : "";
 
   const handleLoadAudio = useCallback(
