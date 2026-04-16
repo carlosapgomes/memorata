@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  Memorata app icon concept (rounded square + Lucide ScrollText glyph)
+  Glyph source: https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/scroll-text.svg
+  Lucide license: ISC
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1024"
+  height="1024"
+  viewBox="0 0 1024 1024"
+  version="1.1"
+>
+  <!-- Rounded-square app background -->
+  <rect x="64" y="64" width="896" height="896" rx="210" ry="210" fill="#FAA2CA" />
+
+  <!-- ScrollText icon (scaled from 24x24 Lucide grid) -->
+  <g
+    transform="translate(205,205) scale(25.5833333)"
+    fill="none"
+    stroke="#0F0F0F"
+    stroke-width="2.15"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M15 12h-5" />
+    <path d="M15 8h-5" />
+    <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+    <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3" />
+  </g>
+</svg>
