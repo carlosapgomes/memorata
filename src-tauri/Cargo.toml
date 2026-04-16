@@ -1,6 +1,6 @@
 [package]
 name = "memorata"
-version = "0.0.1"
+version = "0.0.6"
 description = "Memorata"
 authors = ["cjpais"]
 edition = "2021"
