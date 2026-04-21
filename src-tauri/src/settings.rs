@@ -187,7 +187,7 @@ impl Default for KeyboardImplementation {
 
 impl Default for TranscriptionBackend {
     fn default() -> Self {
-        TranscriptionBackend::Local
+        TranscriptionBackend::AssemblyAi
     }
 }
 
@@ -516,7 +516,7 @@ fn default_sound_theme() -> SoundTheme {
 }
 
 fn default_post_process_enabled() -> bool {
-    false
+    true
 }
 
 fn default_auto_post_process_on_session_stop() -> bool {
@@ -630,6 +630,9 @@ fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
     }
+    if provider_id == "openai" {
+        return "gpt-5.2".to_string();
+    }
     String::new()
 }
 
@@ -646,9 +649,9 @@ fn default_post_process_models() -> HashMap<String, String> {
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
-        id: "default_improve_transcriptions".to_string(),
-        name: "Improve Transcriptions".to_string(),
-        prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+        id: "default_meeting_minutes".to_string(),
+        name: "Meeting Minutes".to_string(),
+        prompt: "Transform the following meeting transcription into a structured meeting minutes document.\n\nRules:\n1. Keep the output in the SAME LANGUAGE as the original transcription — do NOT translate.\n2. When speaker diarization is present (e.g., Speaker A, Speaker B), attribute points to the respective speakers.\n3. Do NOT invent, assume, or add information that is not present in the transcription.\n4. Structure the output with the following sections:\n   - **Context**: Brief summary of the meeting topic and purpose.\n   - **Decisions**: Key decisions made during the meeting, attributed to speakers when possible.\n   - **Action Items**: Concrete tasks assigned, including who is responsible (when mentioned) and deadlines (when mentioned).\n   - **Open Items / Pending**: Unresolved topics or items that need follow-up.\n5. Be concise and objective.\n\nTranscription:\n${output}".to_string(),
     }]
 }
 
@@ -806,7 +809,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
-        post_process_selected_prompt_id: None,
+        post_process_selected_prompt_id: Some("default_meeting_minutes".to_string()),
         auto_post_process_on_session_stop: default_auto_post_process_on_session_stop(),
         mute_while_recording: false,
         append_trailing_space: false,
@@ -966,10 +969,14 @@ mod tests {
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
     }
 
+    // S01: Backend default changed to AssemblyAI
     #[test]
-    fn default_settings_use_local_transcription_backend() {
+    fn default_settings_use_assemblyai_transcription_backend() {
         let settings = get_default_settings();
-        assert_eq!(settings.transcription_backend, TranscriptionBackend::Local);
+        assert_eq!(
+            settings.transcription_backend,
+            TranscriptionBackend::AssemblyAi
+        );
         assert_eq!(
             settings.assembly_ai_base_url,
             "https://api.assemblyai.com/v2"
@@ -977,5 +984,62 @@ mod tests {
         assert_eq!(settings.assembly_ai_poll_interval_ms, 2_000);
         assert_eq!(settings.assembly_ai_timeout_seconds, 10_800);
         assert_eq!(settings.assembly_ai_language_code, "auto");
+    }
+
+    // S01: Post-processing enabled by default
+    #[test]
+    fn default_settings_post_process_enabled() {
+        let settings = get_default_settings();
+        assert!(settings.post_process_enabled);
+    }
+
+    // S01: Default provider is openai, model is gpt-5.2
+    #[test]
+    fn default_settings_post_process_provider_and_model() {
+        let settings = get_default_settings();
+        assert_eq!(settings.post_process_provider_id, "openai");
+        let model = settings
+            .post_process_models
+            .get("openai")
+            .expect("openai model should exist");
+        assert_eq!(model, "gpt-5.2");
+    }
+
+    // S01: Default prompt selected and exists in prompts list
+    #[test]
+    fn default_settings_selected_prompt_is_valid() {
+        let settings = get_default_settings();
+        let selected_id = settings
+            .post_process_selected_prompt_id
+            .as_ref()
+            .expect("a prompt should be selected by default");
+
+        let exists = settings
+            .post_process_prompts
+            .iter()
+            .any(|p| &p.id == selected_id);
+        assert!(exists, "selected prompt id '{}' must exist in prompts list", selected_id);
+    }
+
+    // S01: Default prompt content contains meeting minutes instructions
+    #[test]
+    fn default_prompt_is_meeting_minutes() {
+        let settings = get_default_settings();
+        let selected_id = settings
+            .post_process_selected_prompt_id
+            .as_ref()
+            .unwrap();
+
+        let prompt = settings
+            .post_process_prompts
+            .iter()
+            .find(|p| &p.id == selected_id)
+            .unwrap();
+
+        // Verify it's the meeting minutes prompt
+        assert_eq!(prompt.id, "default_meeting_minutes");
+        assert!(prompt.name.contains("Meeting"));
+        assert!(prompt.prompt.contains("Speaker"));
+        assert!(prompt.prompt.contains("${output}"));
     }
 }
