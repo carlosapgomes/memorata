@@ -407,6 +407,9 @@
         "cancel": "Cancelar",
         "selectToEdit": "Selecione um prompt acima para visualizar e editar seus detalhes.",
         "createFirst": "Clique em 'Criar Novo Prompt' acima para criar seu primeiro prompt de pós-processamento."
+      },
+      "toggle": {
+        "title": "Ativar Pós-Processamento"
       }
     },
     "history": {
