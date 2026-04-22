@@ -46,10 +46,33 @@ function App() {
     (state) => state.refreshOutputDevices,
   );
   const hasCompletedPostOnboardingInit = useRef(false);
+  // Guard ref to prevent triggering onboarding multiple times for the same backend change
+  const hasTriggeredLocalOnboarding = useRef(false);
 
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
+  // Monitor transcription_backend changes to trigger model onboarding when switching to local without models
+  // Reset guard when backend changes away from local (so it can trigger again when switching back)
+  useEffect(() => {
+    if (onboardingStep === "done" && settings?.transcription_backend !== "local") {
+      hasTriggeredLocalOnboarding.current = false;
+    }
+  }, [onboardingStep, settings?.transcription_backend]);
+
+  useEffect(() => {
+    if (onboardingStep !== "done") return;
+    if (settings?.transcription_backend !== "local") return;
+    if (hasTriggeredLocalOnboarding.current) return;
+    hasTriggeredLocalOnboarding.current = true;
+
+    commands.hasAnyModelsAvailable().then((result) => {
+      if (result.status === "ok" && !result.data) {
+        setOnboardingStep("model");
+      }
+    });
+  }, [onboardingStep, settings?.transcription_backend]);
 
   // Initialize RTL direction when language changes
   useEffect(() => {
@@ -236,10 +259,28 @@ function App() {
     }
   };
 
-  const handleAccessibilityComplete = () => {
-    // Returning users already have models, skip to main app
-    // New users need to select a model
-    setOnboardingStep(isReturningUser ? "done" : "model");
+  const handleAccessibilityComplete = async () => {
+    // Fallback to assembly_ai if settings is null (safe default — no local model needed)
+    const activeBackend = settings?.transcription_backend ?? "assembly_ai";
+    if (activeBackend === "assembly_ai") {
+      setOnboardingStep("done");
+      return;
+    }
+
+    // For local backend, check if any model is available
+    // If user already has models (isReturningUser) OR backend has models, go to done
+    if (isReturningUser) {
+      setOnboardingStep("done");
+      return;
+    }
+
+    // New user with local backend — check for available models
+    const result = await commands.hasAnyModelsAvailable();
+    if (result.status === "ok" && result.data) {
+      setOnboardingStep("done");
+    } else {
+      setOnboardingStep("model");
+    }
   };
 
   const handleModelSelected = () => {
