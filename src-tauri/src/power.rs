@@ -77,7 +77,7 @@ fn update_keep_awake_windows(should_be_active: bool) {
             SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)
         };
 
-        if result.is_ok() {
+        if result.0 != 0 {
             CURRENT_STATE.store(true, Ordering::Relaxed);
             debug!("Wake lock: activated (preventing sleep/screensaver)");
         } else {
@@ -90,7 +90,7 @@ fn update_keep_awake_windows(should_be_active: bool) {
             SetThreadExecutionState(ES_CONTINUOUS)
         };
 
-        if result.is_ok() {
+        if result.0 != 0 {
             CURRENT_STATE.store(false, Ordering::Relaxed);
             debug!("Wake lock: deactivated (normal idle behavior restored)");
         } else {
