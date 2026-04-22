@@ -342,6 +342,13 @@ fn update_stage_flags(
             is_processing.store(true, Ordering::Relaxed);
         }
     }
+
+    // Update wake lock based on current session state
+    // Wake lock active for: recording, paused, or processing states
+    let recording = is_recording.load(Ordering::Relaxed);
+    let paused = is_paused.load(Ordering::Relaxed);
+    let processing = is_processing.load(Ordering::Relaxed);
+    crate::power::update_keep_awake(recording, paused, processing);
 }
 
 fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &str) {

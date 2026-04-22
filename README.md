@@ -327,6 +327,12 @@ We're actively working on several features and improvements. Contributions and f
 
 ### In Progress
 
+**Wake Lock (Power Management):**
+
+- Implemented on Windows to prevent sleep/screensaver during active sessions
+- TODO: Implement wake lock on macOS (using IOKit)
+- TODO: Implement wake lock on Linux (using logind or equivalent)
+
 **Debug Logging:**
 
 - Adding debug logging to a file to help diagnose issues
