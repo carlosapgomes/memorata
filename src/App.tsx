@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { platform } from "@tauri-apps/plugin-os";
 import { checkMicrophonePermission } from "tauri-plugin-macos-permissions-api";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ModelStateEvent,
   RecordingErrorEvent,
@@ -48,6 +49,8 @@ function App() {
   const hasCompletedPostOnboardingInit = useRef(false);
   // Guard ref to prevent triggering onboarding multiple times for the same backend change
   const hasTriggeredLocalOnboarding = useRef(false);
+  // Guard ref to prevent recursive close handling
+  const isProgrammaticClose = useRef(false);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -203,6 +206,40 @@ function App() {
       console.warn("Failed to show main window for permission onboarding:", e);
     }
   };
+
+  // Handle close request with session state check
+  useEffect(() => {
+    const handleCloseRequested = async (event: { preventDefault: () => void }) => {
+      if (isProgrammaticClose.current) {
+        // This was triggered by our code, allow it
+        return;
+      }
+
+      try {
+        const sessionState = await commands.getRecordingSessionState();
+        if (sessionState !== "idle") {
+          event.preventDefault();
+          const confirmed = window.confirm(
+            "You have an active recording session. Are you sure you want to quit?",
+          );
+          if (confirmed) {
+            isProgrammaticClose.current = true;
+            const mainWindow = getCurrentWindow();
+            await mainWindow.close();
+          }
+        }
+      } catch (e) {
+        console.error("Failed to check session state on close:", e);
+      }
+    };
+
+    const mainWindow = getCurrentWindow();
+    const unlisten = mainWindow.onCloseRequested(handleCloseRequested);
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   const checkOnboardingStatus = async () => {
     try {

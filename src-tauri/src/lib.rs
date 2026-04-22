@@ -560,9 +560,9 @@ pub fn run(cli_args: CliArgs) {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                api.prevent_close();
-                let _res = window.hide();
+            tauri::WindowEvent::CloseRequested { api: _, .. } => {
+                // Let the window close naturally (no prevent_close)
+                // Frontend will handle confirmation if session is active
 
                 #[cfg(target_os = "macos")]
                 {
