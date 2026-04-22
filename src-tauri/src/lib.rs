@@ -182,15 +182,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     #[cfg(unix)]
     signal_handle::setup_signal_handler(app_handle.clone(), signals);
 
-    // Apply macOS Accessory policy if starting hidden and tray is available.
-    // If the tray icon is disabled, keep the dock icon so the user can reopen.
-    #[cfg(target_os = "macos")]
-    {
-        let settings = settings::get_settings(app_handle);
-        if settings.start_hidden && settings.show_tray_icon {
-            let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
-        }
-    }
     // Get the current theme to set the appropriate initial icon
     let initial_theme = tray::get_current_theme(app_handle);
 
@@ -561,18 +552,10 @@ pub fn run(cli_args: CliArgs) {
                 tray::set_tray_visibility(&app_handle, false);
             }
 
-            // Show main window only if not starting hidden.
-            // CLI --start-hidden flag overrides the setting.
-            // But if permission onboarding is required, always show the window.
-            let should_hide = settings.start_hidden || cli_args.start_hidden;
-            let should_force_show = should_force_show_permissions_window(&app_handle);
-
-            // If start_hidden but tray is disabled, we must show the window
-            // anyway. Without a tray icon, the dock is the only way back in.
-            let tray_available = settings.show_tray_icon && !cli_args.no_tray;
-            if should_force_show || !should_hide || !tray_available {
-                show_main_window(&app_handle);
-            }
+            // Show main window by default.
+            // Note: start_hidden and show_tray_icon settings are ignored at startup
+            // to ensure the app opens visibly regardless of configuration.
+            show_main_window(&app_handle);
 
             Ok(())
         })
