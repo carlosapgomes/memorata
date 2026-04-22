@@ -75,6 +75,18 @@ export default function RecordingSessionControls() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartRef = useRef<number | null>(null);
 
+  const autoPostProcessOnStop =
+    getSetting("auto_post_process_on_session_stop") ?? false;
+  const isAutoPostProcessUpdating = isUpdating(
+    "auto_post_process_on_session_stop",
+  );
+
+  const canManualPostProcess =
+    !isLoading &&
+    !isPostProcessing &&
+    state === "idle" &&
+    !autoPostProcessOnStop;
+
   const canStart = useMemo(
     () => !isLoading && state === "idle",
     [isLoading, state],
@@ -96,17 +108,53 @@ export default function RecordingSessionControls() {
     [isLoading, state],
   );
 
-  const autoPostProcessOnStop =
-    getSetting("auto_post_process_on_session_stop") ?? false;
-  const isAutoPostProcessUpdating = isUpdating(
-    "auto_post_process_on_session_stop",
-  );
+  // Keyboard shortcut handler for local (focused-window) shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if focus is on input, textarea, select, or contenteditable
+      const target = event.target as HTMLElement;
+      const tagName = target.tagName?.toLowerCase() ?? "";
+      const isEditable =
+        target.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select";
+      if (isEditable) return;
 
-  const canManualPostProcess =
-    !isLoading &&
-    !isPostProcessing &&
-    state === "idle" &&
-    !autoPostProcessOnStop;
+      if (event.ctrlKey || event.metaKey) {
+        // Ctrl+R: Start or Stop
+        if (event.key.toLowerCase() === "r" && !event.shiftKey) {
+          event.preventDefault();
+          if (state === "idle") {
+            void handleStart();
+          } else if (state === "recording" || state === "paused") {
+            void handleStop();
+          }
+        }
+        // Ctrl+P: Pause or Resume
+        else if (event.key.toLowerCase() === "p" && !event.shiftKey) {
+          event.preventDefault();
+          if (state === "recording") {
+            void handlePause();
+          } else if (state === "paused") {
+            void handleResume();
+          }
+        }
+        // Ctrl+Shift+P: Manual post-process
+        else if (
+          event.key.toLowerCase() === "p" &&
+          event.shiftKey &&
+          canManualPostProcess
+        ) {
+          event.preventDefault();
+          void handleManualPostProcess();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [state, canManualPostProcess, diarizationEnabled, speakersExpected]);
 
   const formatTime = (totalSeconds: number): string => {
     const hours = Math.floor(totalSeconds / 3600);
